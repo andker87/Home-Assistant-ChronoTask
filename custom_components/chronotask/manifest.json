@@ -1,0 +1,18 @@
+{
+  "domain": "chronotask",
+  "name": "ChronoTask",
+  "version": "1.0.0",
+  "documentation": "https://github.com/andker87/Home-Assistant-ChronoTask",
+  "issue_tracker": "https://github.com/andker87/Home-Assistant-ChronoTask/issues",
+  "codeowners": [
+    "@andker87"
+  ],
+  "iot_class": "local_push",
+  "integration_type": "hub",
+  "requirements": [],
+  "dependencies": ["http", "frontend"],
+  "loggers": [
+    "custom_components.chronotask"
+  ],
+  "config_flow": true
+}
