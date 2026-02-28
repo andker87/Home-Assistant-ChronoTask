@@ -1,0 +1,116 @@
+add_rule:
+  name: Aggiungi regola settimanale
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se ce n'è uno solo)"
+    title:
+      example: "Luce salotto ON"
+    day:
+      description: "0=Lunedì ... 6=Domenica"
+      example: 1
+    start:
+      description: "Orario inizio HH:MM"
+      example: "10:00"
+    end:
+      description: "Orario fine HH:MM (opzionale, solo visivo)"
+      example: "11:00"
+    end_day:
+      description: "Giorno fine (0..6), opzionale"
+      example: 1
+    service:
+      example: "light.turn_on"
+    service_data:
+      example: {"entity_id": "light.salotto"}
+    end_service:
+      example: "light.turn_off"
+    end_service_data:
+      example: {"entity_id": "light.salotto"}
+    enabled:
+      example: true
+    tags:
+      description: "Tag (lista o stringa separata da virgole)"
+      example: ["luci", "vacanza"]
+    color:
+      example: "#5a8e62"
+    icon:
+      example: "mdi:lightbulb"
+
+update_rule:
+  name: Aggiorna regola
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+    id:
+      required: true
+    title:
+      required: false
+    day:
+      required: false
+    start:
+      required: false
+    end:
+      required: false
+    end_day:
+      required: false
+    service:
+      required: false
+    service_data:
+      required: false
+    end_service:
+      required: false
+    end_service_data:
+      required: false
+    enabled:
+      required: false
+    tags:
+      required: false
+    color:
+      required: false
+    icon:
+      required: false
+
+remove_rule:
+  name: Elimina regola
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+    id:
+      required: true
+
+clear_rules:
+  name: Cancella tutte le regole
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+
+run_rule_now:
+  name: Esegui subito
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+    id:
+      required: true
+
+reschedule_all:
+  name: Riesegui scheduling
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+
+enable_tag:
+  name: Abilita tutte le regole con un tag
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+    tag:
+      required: true
+      example: "luci"
+
+disable_tag:
+  name: Disabilita tutte le regole con un tag
+  fields:
+    planner_id:
+      description: "ID del planner (opzionale se uno solo)"
+    tag:
+      required: true
+      example: "luci"

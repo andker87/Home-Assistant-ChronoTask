@@ -1,0 +1,14 @@
+{
+  "title": "ChronoTask",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Crea ChronoTask",
+        "description": "Più istanze supportate",
+        "data": {
+          "name": "Nome del planner"
+        }
+      }
+    }
+  }
+}
