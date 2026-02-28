@@ -4,7 +4,7 @@
 
 ChronoTask is a Home Assistant integration that lets you create, visualize and manage **recurring weekly schedules** through a clear, editable and truly usable visual planner.
 
-<img width="784" height="563" alt="Immagine 2026-02-26 152748" src="https://github.com/user-attachments/assets/2135958a-0a9f-4915-b0c1-39bebee9a629" />
+<img width="784" height="563" alt="ChronoTask_1" src="https://github.com/user-attachments/assets/561024b8-fb1b-431c-928f-f957454f1b9c" />
 
 
 ## 📖 Contents
@@ -99,11 +99,11 @@ ChronoTask provides:
 - 📱 **Mobile-friendly UI** (scrolling, adaptive layout, readable)
 
 
-![Registrazione2026-02-26154149-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/ebdba325-d5c9-4d95-89ff-222462987f86)
+![ChronoTask_2](https://github.com/user-attachments/assets/0f7e469a-06fe-4eff-8d6b-91bcf57c0a5f)
 
-![Registrazione2026-02-26154318-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/143872d3-c489-4499-a949-7fb9e79fe64d)
+![ChronoTask_3](https://github.com/user-attachments/assets/f8aac1e5-ba6e-4bea-be85-9b82e7408733)
 
-![Registrazione2026-02-26152024-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6b6aa3ad-c0ca-421e-87c3-61037b33b022)
+![ChronoTask_4](https://github.com/user-attachments/assets/25d5f971-a89a-47c1-8dde-73f37c371c02)
 
 
 ---
@@ -139,7 +139,7 @@ ChronoTask is not just a card, but a small ecosystem:
 5. Go to **Settings → Devices & Services → Add integration**
 6. Search for **ChronoTask**
 
-✅ In **UI / Storage mode**, the cards are **automatically registered** in *Dashboard Resources*.
+✅ The integration automatically installs and updates the required frontend files. The two ChronoTask Lovelace cards will appear in the **“Custom card”** section when adding a new card to a dashboard.
 
 ---
 🛠️ Manual Installation
@@ -148,28 +148,24 @@ If you prefer not to use HACS, you can install the integration manually:
 
 1. Download the latest release from this repository
 2. Extract the archive
-3. Copy the chronotask folder into:
+3. Copy the folder custom_components/chronotask into:
 ```
 <config>/custom_components/chronotask
 ```
 4. Restart Home Assistant  
 5. Go to Settings → Devices & Services → Add Integration  
-6. Search for ChronoTask  
+6. Search for ChronoTask
+The integration will automatically copy the required frontend files into:
+```
+<config>/www/chronotask/
+```
+and serve them under:
+```
+/local/chronotask/
+```
+No manual Lovelace resource configuration is required.
 <br>
-📌 Manual Lovelace Resources
-
-If you installed manually and are using UI (Storage) mode, add the resources from:
-```
-Settings → Dashboards → Resources
-```  
-Add:
-```
-/chronotask/chronotask-weekly.js (type: module)
-/chronotask/chronotask-tag-manager.js (type: module)
-```
-
 ---
-
 ### ⚠️ Lovelace YAML mode note
 
 If you are using Lovelace in **YAML mode**, resources must be added manually:
