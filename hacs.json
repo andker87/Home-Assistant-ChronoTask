@@ -1,7 +1,6 @@
 {
   "name": "ChronoTask",
   "content_in_root": false,
-  "domains": ["chronotask"],
   "render_readme": true,
   "zip_release": false
 }
