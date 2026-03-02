@@ -6,7 +6,7 @@
   "dependencies": ["http", "frontend"],
   "documentation": "https://github.com/andker87/Home-Assistant-ChronoTask",
   "homekit": {},
-  "integration_type": "hub"
+  "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/andker87/Home-Assistant-ChronoTask/issues",
   "loggers": ["custom_components.chronotask"],
