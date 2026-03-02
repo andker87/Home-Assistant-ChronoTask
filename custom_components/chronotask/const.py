@@ -5,7 +5,7 @@ import json
 from typing import Final
 
 # Versione letta dal manifest (così non la duplichi)
-_MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
+_MANIFEST_PATH = Path(__file__).parent.parent.parent / "manifest.json"  
 with _MANIFEST_PATH.open(encoding="utf-8") as f:
     INTEGRATION_VERSION: Final[str] = json.load(f).get("version", "0.0.0")
 
