@@ -5,7 +5,7 @@ import json
 from typing import Final
 
 # Versione letta dal manifest (così non la duplichi)
-_MANIFEST_PATH = Path(__file__).parent / "manifest.json"
+_MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
 with _MANIFEST_PATH.open(encoding="utf-8") as f:
     INTEGRATION_VERSION: Final[str] = json.load(f).get("version", "0.0.0")
 
@@ -13,13 +13,11 @@ with _MANIFEST_PATH.open(encoding="utf-8") as f:
 URL_BASE = "/local/chronotask"
 
 # Moduli JS da registrare in Lovelace Resources
-
+# La versione viene presa da INTEGRATION_VERSION per il cache-busting
 JSMODULES = [
-    {"filename": "chronotask-tag-manager.js", "version": "0.1"},
-    {"filename": "chronotask-weekly-card.js", "version": "0.1"},
+    {"filename": "chronotask-tag-manager.js"},
+    {"filename": "chronotask-weekly-card.js"},
 ]
-
-
 
 DOMAIN = "chronotask"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
@@ -67,5 +65,3 @@ SERVICE_ENABLE_TAG = "enable_tag"
 SERVICE_DISABLE_TAG = "disable_tag"
 
 BUS_EVENT_CHANGED = DOMAIN + "_changed"
-
-
