@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import logging
 import shutil
+
+import homeassistant.helpers.config_validation as cv
+
+
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -13,6 +17,11 @@ from .const import DOMAIN, CONF_NAME, JSMODULES, URL_BASE, INTEGRATION_VERSION
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
+
+
+from .const import DOMAIN
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
