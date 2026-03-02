@@ -732,20 +732,46 @@ async _setAllEnabled(enabled){
     }
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
-    // Prefill existing
-    if(existing){ try{
-      if(existing.id||existing.uid) f_id.value=String(existing.id||existing.uid);
-      f_title.value=(existing.title||existing.service||'Action').trim();
-      const dayVal=(typeof existing.day==='number')?existing.day: (typeof existing.weekday==='number'?existing.weekday:undefined);
-      if(dayVal!=null) f_day.value=String(dayVal);
-      if(existing.start||existing.time) f_start.value=String((existing.start||existing.time)).slice(0,5);
-      if(typeof existing.end_day==='number') f_day_end.value=String(existing.end_day);
-      if(existing.end) f_end.value=String(existing.end).slice(0,5);
-      // enabled
-      enabledSwitch.checked = (existing.enabled !== false);
-      // tags
-      f_tags.value = _tagsToText(existing.tags);
-    }catch(_){ } }
+// Prefill existing
+if (existing) {
+  try {
+    if (existing.id || existing.uid) {
+      f_id.value = String(existing.id || existing.uid);
+    }
+
+    f_title.value = (existing.title || existing.service || 'Action').trim();
+
+    const dayVal =
+      typeof existing.day === 'number'
+        ? existing.day
+        : typeof existing.weekday === 'number'
+        ? existing.weekday
+        : undefined;
+
+    if (dayVal != null) f_day.value = String(dayVal);
+
+    if (existing.start || existing.time)
+      f_start.value = String(existing.start || existing.time).slice(0, 5);
+
+    if (typeof existing.end_day === 'number')
+      f_day_end.value = String(existing.end_day);
+
+    if (existing.end)
+      f_end.value = String(existing.end).slice(0, 5);
+
+    // enabled
+    enabledSwitch.checked = existing.enabled !== false;
+
+    // tags
+    f_tags.value = _tagsToText(existing.tags);
+  } catch (_) {}
+}
+
+// PATCH: se è una duplicazione (prefill senza existing), l'ID deve essere vuoto
+if (prefill && !existing) {
+  f_id.value = "";
+}
+
 
     // Prefill for new/duplicate
     if(!existing && prefill){
@@ -834,27 +860,66 @@ async _setAllEnabled(enabled){
     const doClose=()=>{ try{ dlg.close(); }catch(_){ } };
     const getPlannerId=()=> this._getPlannerId();
 
-    // Duplica
-    const btn_duplicate=content.querySelector('#btn_duplicate_text');
-    if(btn_duplicate){
-      btn_duplicate.addEventListener('click',(ev)=>{
-        ev.preventDefault(); ev.stopPropagation();
-        const eid=getEntityId();
-        const startService=(f_service_sel.value||'').trim();
-        const startData=_collectServiceData(svc_fields); if(eid) startData.entity_id=eid;
-        const endService=(f_service_sel_end.value||'').trim();
-        const endData=_collectServiceData(svc_fields_end); if(eid && endService) endData.entity_id=eid;
-        const colorHex=_toHexFromAny(f_color.value||this._config.default_color,this._config.default_color);
-        const iconVal=this._sanitizeIcon(getIconValue());
-        const dupPrefill={ title:(f_title.value||'Action').trim(), day:Number(f_day.value), start:(f_start.value||'08:00').slice(0,5), service:startService, service_data:startData, color:colorHex, ui_color:colorHex, enabled: enabledSwitch.checked, tags: _tagsToArray(f_tags.value), ...(iconVal?{icon:iconVal}:{}) };
-        const endTime=(f_end.value||'').trim().slice(0,5); const endDayRaw=(f_day_end.value||'').trim();
-        if(endTime) dupPrefill.end=endTime;
-        if(endDayRaw!=='' && !Number.isNaN(Number(endDayRaw))) dupPrefill.end_day=Number(endDayRaw);
-        if(endService){ dupPrefill.end_service=endService; dupPrefill.end_service_data=endData; }
-        doClose();
-        setTimeout(()=> this._openDialog({prefill:dupPrefill}),50);
-      });
+// Duplica
+const btn_duplicate = content.querySelector('#btn_duplicate_text');
+if (btn_duplicate) {
+  btn_duplicate.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const eid = getEntityId();
+
+    const startService = (f_service_sel.value || '').trim();
+    const startData = _collectServiceData(svc_fields);
+    if (eid) startData.entity_id = eid;
+
+    const endService = (f_service_sel_end.value || '').trim();
+    const endData = _collectServiceData(svc_fields_end);
+    if (eid && endService) endData.entity_id = eid;
+
+    const colorHex = _toHexFromAny(
+      f_color.value || this._config.default_color,
+      this._config.default_color
+    );
+
+    const iconVal = this._sanitizeIcon(getIconValue());
+
+    // --- PATCH: dupPrefill senza ID/UID ---
+    const dupPrefill = {
+      title: (f_title.value || 'Action').trim(),
+      day: Number(f_day.value),
+      start: (f_start.value || '08:00').slice(0, 5),
+      service: startService,
+      service_data: startData,
+      color: colorHex,
+      ui_color: colorHex,
+      enabled: enabledSwitch.checked,
+      tags: _tagsToArray(f_tags.value),
+      ...(iconVal ? { icon: iconVal } : {})
+    };
+
+    const endTime = (f_end.value || '').trim().slice(0, 5);
+    const endDayRaw = (f_day_end.value || '').trim();
+
+    if (endTime) dupPrefill.end = endTime;
+    if (endDayRaw !== '' && !Number.isNaN(Number(endDayRaw)))
+      dupPrefill.end_day = Number(endDayRaw);
+
+    if (endService) {
+      dupPrefill.end_service = endService;
+      dupPrefill.end_service_data = endData;
     }
+
+    // 🔥 PATCH CRITICA: rimuovere ID e UID per evitare sovrascritture
+    delete dupPrefill.id;
+    delete dupPrefill.uid;
+
+    // Chiudi dialogo e riapri con i dati duplicati
+    doClose();
+    setTimeout(() => this._openDialog({ prefill: dupPrefill }), 50);
+  });
+}
+
 
     // Salva (ADD/EDIT)
     const doSave=async()=>{
