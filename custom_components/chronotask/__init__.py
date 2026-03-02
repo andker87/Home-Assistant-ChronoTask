@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import logging
 import shutil
+
+import homeassistant.helpers.config_validation as cv
+
+
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -9,10 +13,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.components import frontend
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_NAME, JSMODULES, URL_BASE
+from .const import DOMAIN, CONF_NAME, JSMODULES, URL_BASE, INTEGRATION_VERSION
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
+
+
+from .const import DOMAIN
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,7 +66,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     # Carica i JS come extra URL (non serve comparire in Resources)
     for module in JSMODULES:
-        url = f"{URL_BASE}/{module['filename']}?v={module['version']}"
+        url = f"{URL_BASE}/{module['filename']}?v={INTEGRATION_VERSION}"
         try:
             frontend.add_extra_js_url(hass, url)
             _LOGGER.debug("ChronoTask: extra JS URL registrato: %s", url)
