@@ -2,7 +2,7 @@
   "domain": "chronotask",
   "name": "ChronoTask",
   "codeowners": ["@andker87"],
-  "config_flow": true
+  "config_flow": true,
   "dependencies": ["http", "frontend"],
   "documentation": "https://github.com/andker87/Home-Assistant-ChronoTask",
   "homekit": {},
