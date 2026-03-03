@@ -68,7 +68,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         hass.http.register_static_path(
             URL_BASE,
             hass.config.path("www/chronotask"),
-            cache_headers=True,
+            cache_headers=False,
         )
         _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
     except Exception:
