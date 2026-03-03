@@ -29,7 +29,9 @@ PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 
 
 def _copy_frontend_files(hass: HomeAssistant) -> None:
-    """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask."""
+    """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask,
+    sostituendo il placeholder __VERSION__ con la versione dell'integrazione.
+    """
     src = Path(hass.config.path("custom_components/chronotask/www/chronotask"))
     dst = Path(hass.config.path("www/chronotask"))
 
@@ -41,10 +43,18 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
 
     for file in src.glob("*.js"):
         try:
-            shutil.copy(file, dst / file.name)
-            _LOGGER.debug("ChronoTask: copiato %s → %s", file, dst / file.name)
+            content = file.read_text(encoding="utf-8")
+            content = content.replace("__VERSION__", INTEGRATION_VERSION)
+
+            dest_file = dst / file.name
+            dest_file.write_text(content, encoding="utf-8")
+
+            _LOGGER.debug("ChronoTask: copiato %s → %s (versione %s)",
+                          file, dest_file, INTEGRATION_VERSION)
+
         except Exception as e:
             _LOGGER.error("ChronoTask: errore copia %s: %s", file, e)
+
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
