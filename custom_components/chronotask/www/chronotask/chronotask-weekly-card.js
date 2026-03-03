@@ -1,4 +1,4 @@
-const CTW_VERSION = 'chronotask-weekly-card v0.1';
+const CTW_VERSION = '__VERSION__';
 try {
   console.info(
     `%c chronotask-weekly-card %c ${CTW_VERSION} `,
