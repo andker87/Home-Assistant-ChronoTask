@@ -29,7 +29,9 @@ PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 
 
 def _copy_frontend_files(hass: HomeAssistant) -> None:
-    """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask."""
+    """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask,
+    sostituendo il placeholder __VERSION__ con la versione dell'integrazione.
+    """
     src = Path(hass.config.path("custom_components/chronotask/www/chronotask"))
     dst = Path(hass.config.path("www/chronotask"))
 
@@ -41,10 +43,18 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
 
     for file in src.glob("*.js"):
         try:
-            shutil.copy(file, dst / file.name)
-            _LOGGER.debug("ChronoTask: copiato %s → %s", file, dst / file.name)
+            content = file.read_text(encoding="utf-8")
+            content = content.replace("__VERSION__", INTEGRATION_VERSION)
+
+            dest_file = dst / file.name
+            dest_file.write_text(content, encoding="utf-8")
+
+            _LOGGER.debug("ChronoTask: copiato %s → %s (versione %s)",
+                          file, dest_file, INTEGRATION_VERSION)
+
         except Exception as e:
             _LOGGER.error("ChronoTask: errore copia %s: %s", file, e)
+
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -58,23 +68,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         hass.http.register_static_path(
             URL_BASE,
             hass.config.path("www/chronotask"),
-            cache_headers=True,
+            cache_headers=False,
         )
         _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
     except Exception:
         _LOGGER.debug("ChronoTask: static path già registrato")
-
-    # Carica i JS come extra URL (non serve comparire in Resources)
-    for module in JSMODULES:
-        url = f"{URL_BASE}/{module['filename']}?v={INTEGRATION_VERSION}"
-        try:
-            frontend.add_extra_js_url(hass, url)
-            _LOGGER.debug("ChronoTask: extra JS URL registrato: %s", url)
-        except Exception:
-            _LOGGER.exception("ChronoTask: errore durante la registrazione di %s", url)
-
     return True
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Setup della singola ConfigEntry."""
