@@ -73,6 +73,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
     except Exception:
         _LOGGER.debug("ChronoTask: static path già registrato")
+    return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Setup della singola ConfigEntry."""
