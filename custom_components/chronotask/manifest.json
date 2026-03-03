@@ -12,6 +12,6 @@
   "issue_tracker": "https://github.com/andker87/Home-Assistant-ChronoTask/issues",
   "loggers": ["custom_components.chronotask"],
   "requirements": [],
-  "version": "1.0.2-beta8"
+  "version": "1.0.2"
 }
 
