@@ -74,18 +74,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception:
         _LOGGER.debug("ChronoTask: static path già registrato")
 
-    # Carica i JS come extra URL (non serve comparire in Resources)
-    for module in JSMODULES:
-        url = f"{URL_BASE}/{module['filename']}?v={INTEGRATION_VERSION}"
-        try:
-            frontend.add_extra_js_url(hass, url)
-            _LOGGER.debug("ChronoTask: extra JS URL registrato: %s", url)
-        except Exception:
-            _LOGGER.exception("ChronoTask: errore durante la registrazione di %s", url)
-
-    return True
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Setup della singola ConfigEntry."""
     name = entry.data.get(CONF_NAME) or entry.title or "ChronoTask"
