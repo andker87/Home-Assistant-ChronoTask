@@ -1,25 +1,20 @@
 from __future__ import annotations
 
 import logging
-import shutil
 
 import homeassistant.helpers.config_validation as cv
-
 
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.components import frontend
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_NAME, JSMODULES, URL_BASE, INTEGRATION_VERSION
+from .const import DOMAIN, CONF_NAME, URL_BASE, INTEGRATION_VERSION
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
 
-
-from .const import DOMAIN
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -31,6 +26,7 @@ PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 def _copy_frontend_files(hass: HomeAssistant) -> None:
     """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask,
     sostituendo il placeholder __VERSION__ con la versione dell'integrazione.
+    Questa funzione è sincrona e va eseguita in un executor thread.
     """
     src = Path(hass.config.path("custom_components/chronotask/www/chronotask"))
     dst = Path(hass.config.path("www/chronotask"))
@@ -45,23 +41,21 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
         try:
             content = file.read_text(encoding="utf-8")
             content = content.replace("__VERSION__", INTEGRATION_VERSION)
-
             dest_file = dst / file.name
             dest_file.write_text(content, encoding="utf-8")
-
-            _LOGGER.debug("ChronoTask: copiato %s → %s (versione %s)",
-                          file, dest_file, INTEGRATION_VERSION)
-
-        except Exception as e:
+            _LOGGER.debug(
+                "ChronoTask: copiato %s → %s (versione %s)",
+                file, dest_file, INTEGRATION_VERSION,
+            )
+        except Exception as e:  # noqa: BLE001
             _LOGGER.error("ChronoTask: errore copia %s: %s", file, e)
 
 
-
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Setup globale: copia i JS, registra static path e carica i JS nel frontend."""
+    """Setup globale: copia i JS (in executor) e registra lo static path."""
 
-    # Copia i file JS in /config/www/chronotask
-    _copy_frontend_files(hass)
+    # Copia i file JS in un thread per non bloccare l'event loop
+    await hass.async_add_executor_job(_copy_frontend_files, hass)
 
     # Static path: /local/chronotask -> /config/www/chronotask
     try:
@@ -71,9 +65,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             cache_headers=False,
         )
         _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
-    except Exception:
+    except Exception:  # noqa: BLE001
         _LOGGER.debug("ChronoTask: static path già registrato")
+
     return True
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Setup della singola ConfigEntry."""
@@ -94,12 +90,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Avvia le piattaforme
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Registra i servizi una sola volta
-    if "listeners" not in hass.data.get(DOMAIN, {}):
+    # Registra i servizi una sola volta usando il check idiomatico di HA
+    if not hass.services.has_service(DOMAIN, "add_rule"):
         await async_setup_services(hass)
-        hass.data[DOMAIN]["listeners"] = True
 
-    # Pianifica
+    # Pianifica tutte le regole
     await scheduler.async_reschedule_all()
     return True
 
