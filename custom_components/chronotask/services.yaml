@@ -1,116 +1,283 @@
 add_rule:
-  name: Aggiungi regola settimanale
+  name: Add weekly rule
+  description: Creates or updates a scheduled weekly rule in a ChronoTask planner.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se ce n'è uno solo)"
+      name: Planner ID
+      description: "ID of the planner (optional if only one planner is configured)."
+      required: false
+      selector:
+        text:
     title:
-      example: "Luce salotto ON"
+      name: Title
+      description: "Display name of the rule shown in the weekly card."
+      required: true
+      example: "Living room light ON"
+      selector:
+        text:
     day:
-      description: "0=Lunedì ... 6=Domenica"
+      name: Day of week
+      description: "Day of the week (0=Monday … 6=Sunday)."
+      required: true
       example: 1
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
     start:
-      description: "Orario inizio HH:MM"
-      example: "10:00"
+      name: Start time
+      description: "Start time in HH:MM format."
+      required: true
+      example: "07:30"
+      selector:
+        time:
     end:
-      description: "Orario fine HH:MM (opzionale, solo visivo)"
-      example: "11:00"
+      name: End time
+      description: "Optional end time in HH:MM format (used for visual duration and end action)."
+      required: false
+      example: "09:00"
+      selector:
+        time:
     end_day:
-      description: "Giorno fine (0..6), opzionale"
+      name: End day of week
+      description: "Optional day for the end action if different from the start day (0–6)."
+      required: false
       example: 1
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
     service:
+      name: Service (start)
+      description: "Home Assistant service to call at start time. Format: domain.service"
+      required: true
       example: "light.turn_on"
+      selector:
+        text:
     service_data:
-      example: {"entity_id": "light.salotto"}
+      name: Service data (start)
+      description: "Optional data payload for the start service call."
+      required: false
+      example: '{"entity_id": "light.living_room", "brightness_pct": 80}'
+      selector:
+        object:
     end_service:
+      name: Service (end)
+      description: "Optional Home Assistant service to call at end time. Format: domain.service"
+      required: false
       example: "light.turn_off"
+      selector:
+        text:
     end_service_data:
-      example: {"entity_id": "light.salotto"}
+      name: Service data (end)
+      description: "Optional data payload for the end service call."
+      required: false
+      example: '{"entity_id": "light.living_room"}'
+      selector:
+        object:
     enabled:
-      example: true
+      name: Enabled
+      description: "Whether this rule is active. Defaults to true."
+      required: false
+      default: true
+      selector:
+        boolean:
     tags:
-      description: "Tag (lista o stringa separata da virgole)"
-      example: ["luci", "vacanza"]
+      name: Tags
+      description: "Comma-separated tags or list of tags for grouping rules."
+      required: false
+      example: "lights, vacation"
+      selector:
+        text:
     color:
+      name: Color
+      description: "Hex color for visual display in the weekly card (e.g. #5a8e62)."
+      required: false
       example: "#5a8e62"
+      selector:
+        color_rgb:
     icon:
+      name: Icon
+      description: "MDI icon for visual display in the weekly card."
+      required: false
       example: "mdi:lightbulb"
+      selector:
+        icon:
+          placeholder: "mdi:calendar-clock"
 
 update_rule:
-  name: Aggiorna regola
+  name: Update weekly rule
+  description: Updates one or more fields of an existing rule by ID. Only supplied fields are modified.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      description: "ID of the planner (optional if only one planner is configured)."
+      required: false
+      selector:
+        text:
     id:
+      name: Rule ID
+      description: "Unique ID of the rule to update."
       required: true
+      selector:
+        text:
     title:
+      name: Title
       required: false
+      selector:
+        text:
     day:
+      name: Day of week
       required: false
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
     start:
+      name: Start time
       required: false
+      selector:
+        time:
     end:
+      name: End time
       required: false
+      selector:
+        time:
     end_day:
+      name: End day of week
       required: false
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
     service:
+      name: Service (start)
       required: false
+      selector:
+        text:
     service_data:
+      name: Service data (start)
       required: false
+      selector:
+        object:
     end_service:
+      name: Service (end)
       required: false
+      selector:
+        text:
     end_service_data:
+      name: Service data (end)
       required: false
+      selector:
+        object:
     enabled:
+      name: Enabled
       required: false
+      selector:
+        boolean:
     tags:
+      name: Tags
       required: false
+      selector:
+        text:
     color:
+      name: Color
       required: false
+      selector:
+        color_rgb:
     icon:
+      name: Icon
       required: false
+      selector:
+        icon:
+          placeholder: "mdi:calendar-clock"
 
 remove_rule:
-  name: Elimina regola
+  name: Remove rule
+  description: Permanently removes a rule by its ID.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
     id:
+      name: Rule ID
+      description: "Unique ID of the rule to remove."
       required: true
+      selector:
+        text:
 
 clear_rules:
-  name: Cancella tutte le regole
+  name: Clear all rules
+  description: Removes all rules from the specified planner. This action cannot be undone.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
 
 run_rule_now:
-  name: Esegui subito
+  name: Run rule now
+  description: Immediately executes the start service of a rule, regardless of schedule.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
     id:
+      name: Rule ID
+      description: "Unique ID of the rule to execute."
       required: true
+      selector:
+        text:
 
 reschedule_all:
-  name: Riesegui scheduling
+  name: Reschedule all
+  description: Cancels all pending timers and rebuilds the full schedule from storage.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
 
 enable_tag:
-  name: Abilita tutte le regole con un tag
+  name: Enable tag
+  description: Enables all rules that have a specific tag.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
     tag:
+      name: Tag
+      description: "Tag name to enable (case-insensitive)."
       required: true
-      example: "luci"
+      example: "vacation"
+      selector:
+        text:
 
 disable_tag:
-  name: Disabilita tutte le regole con un tag
+  name: Disable tag
+  description: Disables all rules that have a specific tag.
   fields:
     planner_id:
-      description: "ID del planner (opzionale se uno solo)"
+      name: Planner ID
+      required: false
+      selector:
+        text:
     tag:
+      name: Tag
+      description: "Tag name to disable (case-insensitive)."
       required: true
-      example: "luci"
+      example: "vacation"
+      selector:
+        text:
