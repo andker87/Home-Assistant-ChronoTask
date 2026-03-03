@@ -1,4 +1,4 @@
-const CTTM_VERSION = 'chronotask-tag-manager v0.1';
+const CTW_VERSION = '__VERSION__';
 
 try {
   console.info(

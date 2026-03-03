@@ -139,10 +139,26 @@ ChronoTask is not just a card, but a small ecosystem:
 5. Go to **Settings → Devices & Services → Add integration**
 6. Search for **ChronoTask**
 
-✅ The integration automatically installs and updates the required frontend files. The two ChronoTask Lovelace cards will appear in the **“Custom card”** section when adding a new card to a dashboard.
+
+#### 📌 Register the frontend resources (required)
+ChronoTask includes two custom Lovelace cards. Home Assistant requires that these are added as **Lovelace Resources**:
+
+1. Go to **Settings → Dashboards**
+2. Click the ⋮ **menu (top‑right) → Resources**
+3. Add the following two resources:
+
+Type: JavaScript Module  
+URL:
+```
+/local/chronotask/chronotask-weekly-card.js
+/local/chronotask/chronotask-tag-manager.js
+```
+4. Restart Home Assistant
+
+After this, the cards will appear in the Custom card section when adding a new card to a dashboard.
 
 ---
-🛠️ Manual Installation
+### 🛠️ Manual Installation
 
 If you prefer not to use HACS, you can install the integration manually:
 
@@ -159,12 +175,15 @@ The integration will automatically copy the required frontend files into:
 ```
 <config>/www/chronotask/
 ```
-and serve them under:
+You must then register the two Lovelace resources manually:
+
+Type: JavaScript Module  
+URL:
 ```
-/local/chronotask/
+/local/chronotask/chronotask-weekly-card.js
+/local/chronotask/chronotask-tag-manager.js
 ```
-No manual Lovelace resource configuration is required.
-<br>
+
 ---
 ### ⚠️ Lovelace YAML mode note
 
