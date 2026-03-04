@@ -1,4 +1,44 @@
-
 {
-  "title": "ChronoTask"
+  "title": "ChronoTask",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Crea un planner ChronoTask",
+        "description": "È supportata la creazione di più istanze — ogni istanza è un planner settimanale indipendente.",
+        "data": {
+          "name": "Nome del planner"
+        },
+        "data_description": {
+          "name": "Nome visualizzato per questo planner (es. 'Riscaldamento', 'Luci')."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Un planner con questo nome è già configurato."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rinomina planner",
+        "description": "Modifica il nome visualizzato di questo planner.",
+        "data": {
+          "name": "Nome del planner"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "rules": {
+        "name": "Regole",
+        "state_attributes": {
+          "rules": { "name": "Lista regole" },
+          "planner_id": { "name": "ID Planner" },
+          "total_rules": { "name": "Regole totali" },
+          "active_rules": { "name": "Regole attive" }
+        }
+      }
+    }
+  }
 }

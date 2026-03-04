@@ -4,20 +4,16 @@ from pathlib import Path
 import json
 from typing import Final
 
-# Versione letta dal manifest (così non la duplichi)
-_MANIFEST_PATH = Path(__file__).parent / "manifest.json"  
-with _MANIFEST_PATH.open(encoding="utf-8") as f:
-    INTEGRATION_VERSION: Final[str] = json.load(f).get("version", "0.0.0")
+# Versione letta dal manifest — con fallback sicuro se il file non è accessibile
+try:
+    _MANIFEST_PATH = Path(__file__).parent / "manifest.json"
+    with _MANIFEST_PATH.open(encoding="utf-8") as _f:
+        INTEGRATION_VERSION: Final[str] = json.load(_f).get("version", "0.0.0")
+except Exception:  # noqa: BLE001
+    INTEGRATION_VERSION: Final[str] = "0.0.0"
 
-# URL base pubblico (pulito)
+# URL base pubblico
 URL_BASE = "/local/chronotask"
-
-# Moduli JS da registrare in Lovelace Resources
-# La versione viene presa da INTEGRATION_VERSION per il cache-busting
-JSMODULES = [
-    {"filename": "chronotask-tag-manager.js"},
-    {"filename": "chronotask-weekly-card.js"},
-]
 
 DOMAIN = "chronotask"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
@@ -30,21 +26,21 @@ CONF_NAME = "name"
 
 # Rule fields (start)
 CONF_TITLE = "title"
-CONF_DAY = "day"          # 0=Mon..6=Sun
-CONF_START = "start"      # HH:MM
+CONF_DAY = "day"              # 0=Mon..6=Sun
+CONF_START = "start"          # HH:MM
 CONF_SERVICE = "service"
 CONF_SERVICE_DATA = "service_data"
 
 # Visual end (duration)
-CONF_END = "end"          # HH:MM (optional)
+CONF_END = "end"              # HH:MM (optional)
 
-# End action (native)
-CONF_END_DAY = "end_day"   # optional weekday for end action, 0..6
+# End action
+CONF_END_DAY = "end_day"      # optional weekday for end action, 0..6
 CONF_END_SERVICE = "end_service"
 CONF_END_SERVICE_DATA = "end_service_data"
 
 # Tags
-CONF_TAGS = "tags"         # list[str]
+CONF_TAGS = "tags"            # list[str]
 
 # Common
 CONF_ENABLED = "enabled"
