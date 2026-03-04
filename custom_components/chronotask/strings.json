@@ -3,11 +3,54 @@
   "config": {
     "step": {
       "user": {
-        "title": "Crea ChronoTask",
-        "description": "Più istanze supportate",
+        "title": "Create ChronoTask planner",
+        "description": "Multiple instances are supported — each instance is an independent weekly planner.",
         "data": {
-          "name": "Nome del planner"
+          "name": "Planner name"
+        },
+        "data_description": {
+          "name": "The display name for this planner (e.g. 'Heating', 'Lights')."
         }
+      }
+    },
+    "abort": {
+      "already_configured": "A planner with this name is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rename planner",
+        "description": "Change the display name of this planner.",
+        "data": {
+          "name": "Planner name"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "rules": {
+        "name": "Rules",
+        "state_attributes": {
+          "rules": {
+            "name": "Rules list"
+          },
+          "planner_id": {
+            "name": "Planner ID"
+          },
+          "total_rules": {
+            "name": "Total rules"
+          },
+          "active_rules": {
+            "name": "Active rules"
+          }
+        }
+      }
+    },
+    "calendar": {
+      "planner": {
+        "name": "{name}"
       }
     }
   }

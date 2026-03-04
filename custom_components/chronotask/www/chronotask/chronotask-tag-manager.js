@@ -1,4 +1,5 @@
-const CTW_VERSION = '__VERSION__';
+// FIX: variabile rinominata da CTW_VERSION a CTTM_VERSION (era undefined nel log)
+const CTTM_VERSION = '__VERSION__';
 
 try {
   console.info(
@@ -243,7 +244,6 @@ class ChronoTaskTagManagerCard extends HTMLElement {
     let rules = rulesAll.filter(r=> _tagsToArray(r.tags).includes(tag));
     rules = this._sortRules(rules);
 
-    // clean optimistic when aligned
     for(const r of rulesAll){
       const rid = r?.id || r?.uid;
       if(!rid) continue;
@@ -416,22 +416,18 @@ class ChronoTaskTagManagerEditor extends HTMLElement {
     if(!this._form) return;
     const tags = this._collectTags();
     const options = tags.map(t=>({ value:t, label:t }));
-
     const curData = Object.assign({}, this._form.data||{}, this._config||{});
     const curTag = String(curData.tag||'').trim().toLowerCase();
-
     let tagOptions = options;
     if(curTag && !tags.includes(curTag)){
       tagOptions = [...options, {value:curTag, label: curTag + ' (custom)'}];
     }
-
     const tagSchema = {
       name:'tag',
       selector:{ select:{ mode:'dropdown', options: tagOptions } },
       label:'Tag',
       optional:false,
     };
-
     this._form.schema = [...this._baseSchema, tagSchema];
     this._form.data = curData;
   }
