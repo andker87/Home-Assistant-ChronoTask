@@ -208,18 +208,31 @@ lovelace:
 
 ## 🔮 Next steps
 
-ChronoTask is a work in progress.  
-Some possible future directions include:
+ChronoTask is a work in progress, actively developed based on real-world usage and community feedback.
 
-- 📦 Native HACS integration (coming soon!)
-- ⏱ Improved handling of **rules spanning across multiple days**  
-  (for example overnight schedules)
-- 📊 A **daily or compact view**, complementary to the weekly planner
-- 🌍 **Multi-language support**
-- 🧠 Further **mobile UX improvements**
+### Coming soon
 
-Priorities will be driven by **real-world usage** and **community feedback**.
+- 📦 Native HACS integration — almost there, stay tuned
+- 🗓 Multi-slot scheduling (v1.2.0) — a single rule can cover multiple days and times; existing rules migrate automatically
+- 🔲 Lane layout in the weekly planner (v1.3.0) — overlapping rules shown side by side instead of stacking
 
+### On the roadmap
+
+- 🌙 Overnight rules — correctly handle schedules that start on one day and end on the next
+- 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
+- ⚡ Execution conditions — run a rule only if a specific HA entity is in a given state
+- 🔁 Non-weekly recurrence — support for "every N days" or "first Monday of the month"
+- 📆 One-off exceptions — skip or force a rule on a specific date without modifying the base rule
+  
+### Longer term
+
+- 📊 Daily / compact view — agenda-style card, useful on mobile dashboards
+- 🌍 Full multi-language UI — card text currently hardcoded in Italian
+- 🔀 Drag & drop rescheduling — move a block directly from the planner card
+- 💾 Export / import rules — backup, restore, and share configurations between HA instances
+- 🔔 Trigger notifications — optional HA notification on every rule execution
+- 🔌 Switch entity per rule — expose each rule as a switch.* entity, usable in standard automations
+  
 ---
 
 ## 🤝 Contributing
