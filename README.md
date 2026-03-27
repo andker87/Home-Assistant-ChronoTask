@@ -132,13 +132,17 @@ ChronoTask is not just a card, but a small ecosystem:
 
 ### ✅ Installation via HACS (recommended)
 
-1. Open **HACS**
-2. Add this repository as a **Custom Integration**
-3. Install **ChronoTask**
-4. Restart Home Assistant
-5. Go to **Settings → Devices & Services → Add integration**
-6. Search for **ChronoTask**
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andker87&repository=Home-Assistant-ChronoTask&category=integration)
 
+ChronoTask is available in the **HACS default store**.
+
+1. Open **HACS**
+2. Go to **Integrations**
+3. Search for **ChronoTask**
+4. Click **Download**
+5. Restart Home Assistant
+6. Go to **Settings → Devices & Services → Add integration**
+7. Search for **ChronoTask**
 
 #### 📌 Register the frontend resources (required)
 ChronoTask includes two custom Lovelace cards. Home Assistant requires that these are added as **Lovelace Resources**:
@@ -212,7 +216,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### Coming soon
 
-- 📦 Native HACS integration — almost there, stay tuned
 - 🗓 Multi-slot scheduling (v1.2.0) — a single rule can cover multiple days and times; existing rules migrate automatically
 - 🔲 Lane layout in the weekly planner (v1.3.0) — overlapping rules shown side by side instead of stacking
 
