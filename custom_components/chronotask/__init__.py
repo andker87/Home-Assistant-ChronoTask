@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_NAME, URL_BASE, INTEGRATION_VERSION
+from .const import DOMAIN, CONF_NAME, INTEGRATION_VERSION
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
@@ -52,26 +52,20 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Setup globale: copia i JS (in executor) e registra lo static path."""
+    """Setup globale: copia i JS delle card (in executor).
+
+    Non serve registrare esplicitamente /local/chronotask come static path:
+    "frontend" è una dipendenza obbligatoria di questa integrazione (vedi
+    manifest.json) e il componente frontend di Home Assistant registra già
+    di default /local -> <config>/www, che copre anche <config>/www/chronotask.
+    Una registrazione esplicita qui era ridondante e, a seconda della
+    versione di HA, l'API usata per farla (hass.http.register_static_path)
+    può anche non esistere più (rimossa/rinominata in core recenti),
+    causando un errore in log pur non avendo alcun impatto funzionale.
+    """
 
     # Copia i file JS in un thread per non bloccare l'event loop
     await hass.async_add_executor_job(_copy_frontend_files, hass)
-
-    # Static path: /local/chronotask -> /config/www/chronotask
-    try:
-        hass.http.register_static_path(
-            URL_BASE,
-            hass.config.path("www/chronotask"),
-            cache_headers=False,
-        )
-        _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
-    except Exception as err:  # noqa: BLE001
-        # In genere significa "già registrato" (setup ripetuto), ma logghiamo
-        # a livello warning per non nascondere errori reali (permessi, disco).
-        _LOGGER.warning(
-            "ChronoTask: static path %s non registrato (probabilmente già presente): %s",
-            URL_BASE, err,
-        )
 
     return True
 
