@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 import copy
 import logging
+import re
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -44,6 +45,12 @@ REQ_FIELDS = [CONF_TITLE, CONF_DAY, CONF_START, CONF_SERVICE]
 # Schemi voluptuous per validazione automatica dei servizi
 # ---------------------------------------------------------------------------
 
+_TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+_time_str = vol.All(cv.string, vol.Match(_TIME_RE, msg="Formato orario non valido, usare HH:MM"))
+# Per i campi opzionali (end) una stringa vuota è ammessa: significa "non impostato"
+# e viene rimossa da _strip_empty_optional_fields prima del salvataggio.
+_time_str_optional = vol.Any("", _time_str)
+
 _BASE_PLANNER = vol.Schema({
     vol.Optional(ATTR_PLANNER_ID): cv.string,
 }, extra=vol.ALLOW_EXTRA)
@@ -55,9 +62,9 @@ _RULE_ID_SCHEMA = _BASE_PLANNER.extend({
 _ADD_RULE_SCHEMA = _BASE_PLANNER.extend({
     vol.Required(CONF_TITLE): cv.string,
     vol.Required(CONF_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
-    vol.Required(CONF_START): cv.string,
+    vol.Required(CONF_START): _time_str,
     vol.Required(CONF_SERVICE): cv.string,
-    vol.Optional(CONF_END): cv.string,
+    vol.Optional(CONF_END): _time_str_optional,
     vol.Optional(CONF_END_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
     vol.Optional(CONF_END_SERVICE): cv.string,
     vol.Optional(CONF_SERVICE_DATA): dict,
@@ -73,8 +80,8 @@ _UPDATE_RULE_SCHEMA = _BASE_PLANNER.extend({
     vol.Required(ATTR_ID): cv.string,
     vol.Optional(CONF_TITLE): cv.string,
     vol.Optional(CONF_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
-    vol.Optional(CONF_START): cv.string,
-    vol.Optional(CONF_END): cv.string,
+    vol.Optional(CONF_START): _time_str,
+    vol.Optional(CONF_END): _time_str_optional,
     vol.Optional(CONF_END_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
     vol.Optional(CONF_SERVICE): cv.string,
     vol.Optional(CONF_SERVICE_DATA): dict,
@@ -96,12 +103,14 @@ _TAG_SCHEMA = _BASE_PLANNER.extend({
 # ---------------------------------------------------------------------------
 
 def _require_planner(hass: HomeAssistant, call: ServiceCall) -> str:
-    """Risolve il planner_id dalla chiamata. Errore se ambiguo."""
+    """Risolve il planner_id dalla chiamata. Errore se ambiguo o inesistente."""
     planner_id = call.data.get(ATTR_PLANNER_ID)
     all_entries = hass.data.get(DOMAIN, {})
-    if planner_id and planner_id in all_entries:
-        return planner_id
-    candidate_ids = [k for k in all_entries if k != "listeners"]
+    if planner_id:
+        if planner_id in all_entries:
+            return planner_id
+        raise HomeAssistantError(f"Planner '{planner_id}' non trovato.")
+    candidate_ids = list(all_entries)
     if len(candidate_ids) == 1:
         return candidate_ids[0]
     raise HomeAssistantError(

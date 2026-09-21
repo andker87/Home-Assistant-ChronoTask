@@ -327,11 +327,22 @@ _ensureLayout(){
     const startStr=(rule.start||rule.time||'00:00').slice(0,5); const endStr=(rule.end||startStr).slice(0,5);
     block.title=`${label} — ${startStr}${rule.end?' → '+endStr:''}`;
     block.dataset.day=String(Number(rule.day??rule.weekday??-1));
+    block.dataset.endDay=(rule.end_day!=null&&rule.end_day!=='')?String(Number(rule.end_day)):'';
     block.dataset.start=startStr; block.dataset.end=endStr;
     const geom=this._computeGeom(rule);
     block.style.top=`${geom.top}px`; block.style.height=`${geom.height}px`;
     const enabled = (rule.enabled !== false);
     block.classList.toggle('disabled', !enabled);
+  }
+
+  // Durata in slot, "day-aware": se end_day differisce dal giorno di start
+  // (regola notturna/a cavallo di giorni), tiene conto della differenza di
+  // giorni invece di calcolare solo sui minuti nel giorno (che darebbe una
+  // durata negativa e collassava il blocco a 1 slot).
+  _durationSlots(day,endDay,startAbsMin,endAbsMin,slotMin){
+    const d=Number(day); const ed=(endDay!=null&&endDay!==''&&Number.isFinite(Number(endDay)))?Number(endDay):d;
+    const dayDelta=(Number.isFinite(d)&&Number.isFinite(ed))?((ed-d+7)%7):0;
+    return ((dayDelta*1440)+endAbsMin-startAbsMin)/slotMin;
   }
 
   _computeGeom(rule){
@@ -340,7 +351,9 @@ _ensureLayout(){
     const [sh,sm]=startStr.split(':').map(Number); const [eh,em]=endStr.split(':').map(Number);
     const startHour=this._toHour(this._config.start_hour,6); const slotMin=this._getSlotMinutes(); const startMinBaseline=startHour*60;
     const startAbsMin=(sh*60)+(sm||0); const endAbsMin=(eh*60)+(em||0);
-    const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin; const durationSlots=(endAbsMin-startAbsMin)/slotMin;
+    const day=rule.day??rule.weekday??0; const endDay=rule.end_day;
+    const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin;
+    const durationSlots=this._durationSlots(day,endDay,startAbsMin,endAbsMin,slotMin);
     const headerPx=this._headerPx||40, rowPx=this._rowPx||40;
     const rawTop=headerPx+(deltaStartSlots*rowPx); const top=Math.max(headerPx,rawTop);
     const height=Math.max(20,(durationSlots<=0 ? (1*rowPx) : (durationSlots*rowPx)));
@@ -353,10 +366,12 @@ _ensureLayout(){
     const startHour=this._toHour(this._config.start_hour,6); const slotMin=this._getSlotMinutes(); const startMinBaseline=startHour*60;
     overlay.querySelectorAll('.rule').forEach(block=>{
       const day=Number(block.dataset.day??-1);
+      const endDay=block.dataset.endDay;
       const startStr=String(block.dataset.start||'00:00'); const endStr=String(block.dataset.end||startStr);
       const [sh,sm]=startStr.split(':').map(Number); const [eh,em]=endStr.split(':').map(Number);
       const startAbsMin=(sh*60)+(sm||0); const endAbsMin=(eh*60)+(em||0);
-      const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin; const durationSlots=(endAbsMin-startAbsMin)/slotMin;
+      const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin;
+      const durationSlots=this._durationSlots(day,endDay,startAbsMin,endAbsMin,slotMin);
       const rawTop=headerPx+(deltaStartSlots*rowPx); const top=Math.max(headerPx,rawTop);
       const height=Math.max(20,(durationSlots<=0 ? (1*rowPx) : (durationSlots*rowPx)));
       block.style.top=`${top}px`; block.style.height=`${height}px`;
@@ -571,7 +586,7 @@ async _setAllEnabled(enabled){
     const startAbsMin=(sh*60)+(sm||0);
     const endAbsMin=(eh*60)+(em||0);
     const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin;
-    const durationSlots=(endAbsMin-startAbsMin)/slotMin;
+    const durationSlots=this._durationSlots(day,rule.end_day,startAbsMin,endAbsMin,slotMin);
 
     const top=(this._headerPx||40)+(deltaStartSlots*(this._rowPx||40));
     const height=Math.max(20,(durationSlots<=0 ? (1*(this._rowPx||40)) : (durationSlots*(this._rowPx||40))));
@@ -590,7 +605,9 @@ async _setAllEnabled(enabled){
     const span=document.createElement('span'); span.textContent=(rule.title||rule.service||'Action')+' (…)'; block.appendChild(span);
     block.title=`${(rule.title||rule.service||'Action')} — ${startStr}${rule.end?' → '+endStr:''}`;
 
-    block.dataset.day=String(day); block.dataset.start=startStr; block.dataset.end=endStr;
+    block.dataset.day=String(day);
+    block.dataset.endDay=(rule.end_day!=null&&rule.end_day!=='')?String(Number(rule.end_day)):'';
+    block.dataset.start=startStr; block.dataset.end=endStr;
     const enabled = (rule.enabled !== false);
     block.classList.toggle('disabled', !enabled);
 
@@ -807,7 +824,13 @@ if (prefill && !existing) {
         if(type==='select'){ input=document.createElement('select'); (attrs.options||[]).forEach(opt=>{ const o=document.createElement('option'); o.value=String(opt); o.textContent=String(opt); input.appendChild(o);}); }
         else { input=document.createElement('input'); input.type=type; if(attrs.min!=null) input.min=String(attrs.min); if(attrs.max!=null) input.max=String(attrs.max); if(attrs.step!=null) input.step=String(attrs.step); if(attrs.placeholder) input.placeholder=attrs.placeholder; }
         input.id=id; input.setAttribute('data-field',name);
-        const v=currentData[name]; if(v!=null) input.value=String(v);
+        if(attrs.kind) input.dataset.kind=attrs.kind;
+        const v=currentData[name];
+        if(v!=null){
+          if(Array.isArray(v)) input.value=v.map(String).join(', ');
+          else if(typeof v==='object') input.value=JSON.stringify(v);
+          else input.value=String(v);
+        }
         row.appendChild(input); container.appendChild(row); return input;
       };
       if(domain==='light'&&service==='turn_on'){ addRow('brightness','Luminosità (0–255)','number',{min:0,max:255,step:1}); addRow('transition','Transizione (s)','number',{min:0,step:0.1}); addRow('effect','Effetto','text',{placeholder:'es. colorloop'}); }
@@ -815,14 +838,34 @@ if (prefill && !existing) {
       else if(domain==='climate'&&service==='set_hvac_mode'){ addRow('hvac_mode','HVAC mode','select',{options:['off','heat','cool','auto','dry','fan_only']}); }
       else if(domain==='cover'&&(service==='set_cover_position'||service==='set_position')){ addRow('position','Posizione (0–100)','number',{min:0,max:100,step:1}); }
       else if(domain==='media_player'&&service==='volume_set'){ addRow('volume_level','Volume (0.0–1.0)','number',{min:0,max:1,step:0.01}); }
+      // Campi non scalari (liste/oggetti): l'input testuale li mostra come CSV/JSON
+      // e 'kind' dice a _collectServiceData come riconvertirli, così il tipo non
+      // viene corrotto (es. rgb_color -> stringa) risalvando una regola invariata.
+      const _fieldKindFromSelector=(fdesc)=>{
+        const sel=fdesc?.selector; if(!sel) return '';
+        if(sel.color_rgb||sel.color_hs||sel.color_xy) return 'list-num';
+        if(sel.object) return 'json';
+        if(sel.select&&sel.select.multiple) return 'list-str';
+        return '';
+      };
       const meta=(this._hass?.services?.[domain]?.[service])||null;
       if(meta?.fields){
         for(const [fname,fdesc] of Object.entries(meta.fields)){
           if(container.querySelector(`[data-field="${fname}"]`)) continue;
           const label=(fdesc?.name||fdesc?.description)?(fdesc.name||fdesc.description):fname;
-          const isNum=/temperature|position|volume|brightness|delay|duration|transition|level|percent/.test(fname);
-          addRow(fname,label,isNum?'number':'text');
+          const kind=_fieldKindFromSelector(fdesc);
+          const isNum=!kind&&/temperature|position|volume|brightness|delay|duration|transition|level|percent/.test(fname);
+          addRow(fname,label,isNum?'number':'text',{kind});
         }
+      }
+      // Valore già presente ma non riconducibile a nessun campo noto (es. servizio
+      // non ha più quella metadata): mostralo comunque per non perderlo silenziosamente.
+      for(const [fname,v] of Object.entries(currentData||{})){
+        if(fname==='entity_id') continue;
+        if(container.querySelector(`[data-field="${fname}"]`)) continue;
+        const kind=Array.isArray(v)?'list-auto':(v&&typeof v==='object'?'json':'');
+        const asNumber=!kind&&typeof v==='number';
+        addRow(fname,fname,asNumber?'number':'text',{kind});
       }
     };
     const _populateServiceSelect=(selectEl,services,preselected)=>{
@@ -835,8 +878,30 @@ if (prefill && !existing) {
     const _collectServiceData=(container)=>{
       const data={}; container.querySelectorAll('[data-field]').forEach(el=>{
         const name=el.getAttribute('data-field'); const raw=(el.value??'').toString();
-        if(el.type==='number'){ if(raw.trim()==='') return; const num=Number(raw); if(!Number.isFinite(num)) return; data[name]=num; }
-        else { if(raw.trim()!=='') data[name]=raw.trim(); }
+        if(raw.trim()==='') return;
+        const kind=el.dataset.kind||'';
+        if(kind==='list-num'){
+          const arr=raw.split(',').map(s=>Number(s.trim())).filter(n=>Number.isFinite(n));
+          if(arr.length) data[name]=arr;
+          return;
+        }
+        if(kind==='list-str'){
+          const arr=raw.split(',').map(s=>s.trim()).filter(Boolean);
+          if(arr.length) data[name]=arr;
+          return;
+        }
+        if(kind==='list-auto'){
+          // Ricostruisce una lista mista preservando i numeri (es. rgb_color salvato senza selector noto)
+          const arr=raw.split(',').map(s=>{ const t=s.trim(); const n=Number(t); return (t!==''&&Number.isFinite(n))?n:t; }).filter(v=>v!=='');
+          if(arr.length) data[name]=arr;
+          return;
+        }
+        if(kind==='json'){
+          try{ data[name]=JSON.parse(raw); }catch(_){ data[name]=raw.trim(); }
+          return;
+        }
+        if(el.type==='number'){ const num=Number(raw); if(!Number.isFinite(num)) return; data[name]=num; return; }
+        data[name]=raw.trim();
       }); return data;
     };
 
@@ -930,7 +995,7 @@ if (btn_duplicate) {
 
       let picked=(f_color&&f_color.value)?String(f_color.value).toLowerCase():'';
       const initial=(f_color?.dataset?.initialHex||'').toLowerCase();
-      if(!picked||picked==='#000000') picked=initial||this._config.default_color;
+      if(!picked) picked=initial||this._config.default_color;
       const colorHex=_toHexFromAny(picked,this._config.default_color);
 
       const startVal=(f_start.value||'08:00').slice(0,5);
