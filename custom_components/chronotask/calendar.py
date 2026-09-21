@@ -20,6 +20,7 @@ from .const import (
     ATTR_ID,
     CONF_END_DAY,
 )
+from .slots import expand_rules
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def _build_event(rule: dict, base_date, now) -> CalendarEvent | None:
             start=start,
             end=end,
             summary=rule.get(CONF_TITLE) or "Action",
-            uid=f"{rule.get(ATTR_ID)}-{start.date()}",
+            uid=f"{rule.get(ATTR_ID)}-{rule.get('_slot_index', 0)}-{start.date()}",
         )
     except Exception:  # noqa: BLE001
         return None
@@ -111,7 +112,10 @@ class EntryPlannerCalendar(CalendarEntity):
 
     async def async_update(self) -> None:
         planner = self.hass.data[DOMAIN][self._entry_id]
-        rules = [r for r in planner["storage"].list_rules() if r.get(CONF_ENABLED, True)]
+        rules = [
+            r for r in expand_rules(planner["storage"].list_rules())
+            if r.get(CONF_ENABLED, True)
+        ]
 
         now = dt_util.now()
         look_ahead_end = now + timedelta(days=7)
@@ -147,7 +151,10 @@ class EntryPlannerCalendar(CalendarEntity):
         self, hass: HomeAssistant, start_date, end_date
     ) -> Iterable[CalendarEvent]:
         planner = self.hass.data[DOMAIN][self._entry_id]
-        rules = [r for r in planner["storage"].list_rules() if r.get(CONF_ENABLED, True)]
+        rules = [
+            r for r in expand_rules(planner["storage"].list_rules())
+            if r.get(CONF_ENABLED, True)
+        ]
 
         events: list[CalendarEvent] = []
         cur = dt_util.as_local(start_date)

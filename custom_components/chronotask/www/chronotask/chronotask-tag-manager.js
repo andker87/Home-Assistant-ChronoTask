@@ -304,7 +304,10 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       name.textContent = (r.title || r.service || 'Action');
       const meta=document.createElement('div');
       meta.className='meta';
-      meta.textContent = `${_fmtDay(r.day)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''} • ${r.service||''}`;
+      const extraSlots = Array.isArray(r.slots) ? r.slots.length - 1 : 0;
+      const timeSummary = `${_fmtDay(r.day)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''}`
+        + (extraSlots > 0 ? ` +${extraSlots}` : '');
+      meta.textContent = `${timeSummary} • ${r.service||''}`;
 
       const tagsWrap=document.createElement('div');
       tagsWrap.className='tags';
