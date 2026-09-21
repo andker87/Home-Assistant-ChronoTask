@@ -366,22 +366,40 @@ _ensureLayout(){
     return `${base}::s${idx}`;
   }
 
-  // Espande una regola nelle sue fasce (rule.slots se presente e non vuoto,
-  // altrimenti un singolo slot ricavato dai campi flat legacy), restituendo
-  // per ciascuna una vista "appiattita" {...rule, ...slot, _slot_index} così
-  // _decorateBlock/_computeGeom restano invariati (operano già su un oggetto
-  // con un solo day/start/end/end_day, esattamente come prima).
-  _expandRuleSlots(rule){
-    const raw=(Array.isArray(rule?.slots)&&rule.slots.length) ? rule.slots : [{
+  // Slot effettivi di una regola: rule.slots se presente e non vuoto,
+  // altrimenti un singolo slot ricostruito dai campi flat legacy
+  // (day/start/end/end_day) — stessa logica di fallback usata lato backend
+  // (slots.py::iter_slots). Unica fonte di verità per questo fallback,
+  // usata sia per il rendering (_expandRuleSlots) sia per il confronto
+  // ottimistico (_slotsSignature).
+  _effectiveSlots(rule){
+    if(Array.isArray(rule?.slots)&&rule.slots.length) return rule.slots;
+    return [{
       day: rule?.day??rule?.weekday,
       start: rule?.start??rule?.time,
       ...(rule?.end?{end:rule.end}:{}),
       ...(rule?.end_day!=null&&rule?.end_day!==''?{end_day:rule.end_day}:{}),
     }];
-    return raw.map((slot,idx)=>{
-      const flat={ ...rule, ...slot };
-      if(!('end' in slot)) delete flat.end;
-      if(!('end_day' in slot)) delete flat.end_day;
+  }
+
+  // Vista "appiattita" di UNO slot: {...rule, ...slot}, senza ereditare
+  // end/end_day di un ALTRO slot della stessa regola quando questo slot non
+  // li ha (rule.end/rule.end_day sono lo specchio di slots[0] lato backend,
+  // quindi andrebbero rimossi esplicitamente per gli slot successivi).
+  _flattenSlot(rule,slot){
+    const flat={ ...rule, ...slot };
+    if(!('end' in slot)) delete flat.end;
+    if(!('end_day' in slot)) delete flat.end_day;
+    return flat;
+  }
+
+  // Espande una regola nelle sue fasce, restituendo per ciascuna una vista
+  // "appiattita" {...rule, ...slot, _slot_index} così _decorateBlock/
+  // _computeGeom restano invariati (operano già su un oggetto con un solo
+  // day/start/end/end_day, esattamente come prima del multi-slot).
+  _expandRuleSlots(rule){
+    return this._effectiveSlots(rule).map((slot,idx)=>{
+      const flat=this._flattenSlot(rule,slot);
       flat._slot_index=idx;
       return flat;
     });
@@ -457,11 +475,7 @@ _ensureLayout(){
   _findRuleBlockByUid(uid){ if(!uid) return null; try{ return this._els?.overlay?.querySelector(`.rule[data-uid="${_cssEscape(String(uid))}"]`)||null; }catch(_){ return null; } }
 
   _slotsSignature(r){
-    const list=(Array.isArray(r.slots)&&r.slots.length) ? r.slots : [{
-      day:r.day??r.weekday, start:r.start??r.time,
-      ...(r.end?{end:r.end}:{}), ...(r.end_day!=null&&r.end_day!==''?{end_day:r.end_day}:{}),
-    }];
-    return list.map(s=>[
+    return this._effectiveSlots(r).map(s=>[
       Number(s.day),
       String(s.start||'').slice(0,5),
       String(s.end||'').slice(0,5),
@@ -665,10 +679,7 @@ async _setAllEnabled(enabled){
   _renderTempBlocks(payload,opts={}){
     const slotsArr=(Array.isArray(payload.slots)&&payload.slots.length) ? payload.slots : [payload];
     slotsArr.forEach(slot=>{
-      const sv={ ...payload, ...slot };
-      if(!('end' in slot)) delete sv.end;
-      if(!('end_day' in slot)) delete sv.end_day;
-      this._renderTempBlock(sv, opts);
+      this._renderTempBlock(this._flattenSlot(payload,slot), opts);
     });
   }
 
@@ -1225,9 +1236,7 @@ if (btn_duplicate) {
               `.rule[data-real-id="${_cssEscape(String(idInfo))}"]`
             ));
             slots.forEach((slot,i)=>{
-              const sv={ ...payload, ...slot };
-              if(!('end' in slot)) delete sv.end;
-              if(!('end_day' in slot)) delete sv.end_day;
+              const sv=this._flattenSlot(payload,slot);
               let block=oldBlocks[i];
               if(!block){
                 const col=this._ensureDayColumn(sv.day);
