@@ -65,8 +65,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             cache_headers=False,
         )
         _LOGGER.debug("ChronoTask: static path registrato su %s", URL_BASE)
-    except Exception:  # noqa: BLE001
-        _LOGGER.debug("ChronoTask: static path già registrato")
+    except Exception as err:  # noqa: BLE001
+        # In genere significa "già registrato" (setup ripetuto), ma logghiamo
+        # a livello warning per non nascondere errori reali (permessi, disco).
+        _LOGGER.warning(
+            "ChronoTask: static path %s non registrato (probabilmente già presente): %s",
+            URL_BASE, err,
+        )
 
     return True
 

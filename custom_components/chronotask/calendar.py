@@ -82,7 +82,10 @@ class EntryPlannerCalendar(CalendarEntity):
         self._attr_name = name
         self._attr_unique_id = f"{PLANNER_CALENDAR_SUFFIX}_{entry_id}"
         self._event = None
-        self._unsub = hass.bus.async_listen(f"{DOMAIN}_changed", self._on_changed)
+        self._unsub = None
+
+    async def async_added_to_hass(self) -> None:
+        self._unsub = self.hass.bus.async_listen(f"{DOMAIN}_changed", self._on_changed)
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsub:
