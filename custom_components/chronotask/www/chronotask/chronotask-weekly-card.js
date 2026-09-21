@@ -169,7 +169,7 @@ _ensureLayout(){
     }
     .rule.temp{opacity:.7}
     .rule.disabled{
-      opacity:.45;
+      opacity:.62;
       filter:saturate(.7);
       background-image:repeating-linear-gradient(45deg,
         rgba(255,255,255,.18) 0,
@@ -188,23 +188,30 @@ _ensureLayout(){
       text-overflow:ellipsis;
       flex:1 1 auto;
     }
+    .day{ overflow:hidden; text-overflow:ellipsis; }
 
     .section{margin-top:12px;padding-top:12px;border-top:1px solid var(--divider-color)}
     .section-title{font-weight:600;margin-bottom:6px}
 
-    /* FIX 2: compatta su viewport piccola */
-    @media (max-width: 480px){
+    /* Tutta la compattazione sotto si basa sulla dimensione REALE della card
+       (container query su .wrap, non sul viewport del browser): fondamentale
+       quando la card vive dentro un wrapper come Bubble Card che la rimpicciolisce
+       indipendentemente dalla finestra. I nomi dei giorni vengono anche
+       riscritti in JS (breve/estremamente breve) da un ResizeObserver, perché
+       un puro troncamento CSS di "mercoledì" resta illeggibile sotto una certa
+       larghezza di colonna. */
+    @container (max-width: 480px){
+      .hdr{ grid-template-columns: 1fr auto; row-gap:8px; }
+      .hdr-left{ grid-column: 1 / -1; }
+      .hdr-center{ justify-self:start; }
+      .hdr-right{ justify-self:end; }
+
       .wrap{ padding: 6px; }
-      .grid{ min-width: 0; }
-      /* ✅ mobile: colonna orari un filo più compatta */
-      .grid{ grid-template-columns: minmax(72px, 8ch) repeat(7, 1fr); }
+      .grid{ min-width: 0; grid-template-columns: minmax(72px, 8ch) repeat(7, 1fr); }
       .cell{ height: 36px; }
       .time{ font-size: 11px; padding: 3px; }
       .day{ font-size: 11px; padding: 5px; }
-    }
 
-    /* ✅ leggibilità regole quando la CARD è stretta */
-    @container (max-width: 480px){
       .rule{
         padding:2px 4px;
         font-size:11px;
@@ -212,6 +219,14 @@ _ensureLayout(){
       }
       /* Priorità testo su card stretta */
       .rule ha-icon{ display:none; }
+    }
+
+    @container (max-width: 340px){
+      .grid{ grid-template-columns: minmax(52px, 6ch) repeat(7, 1fr); }
+      .cell{ height: 30px; }
+      .time{ font-size: 10px; padding: 2px; }
+      .day{ font-size: 10px; padding: 3px; }
+      .rule{ font-size:10px; padding:1px 3px; }
     }
 
   </style>
@@ -255,16 +270,42 @@ _ensureLayout(){
   this._buildGrid();
   this._rebuildOverlayColumns();
   this._layoutReady=true;
+
+  // Adatta la card alla propria larghezza reale (es. dentro Bubble Card o
+  // una colonna stretta), non solo al viewport del browser: le regole
+  // @container in CSS bastano per spaziature/font, ma i nomi dei giorni sono
+  // testo generato in JS e vanno riscritti esplicitamente quando c'è poco
+  // spazio per colonna, altrimenti restano illeggibili troncati dal CSS.
+  try{
+    this._ro=new ResizeObserver(()=> this._onResize());
+    this._ro.observe(this);
+  }catch(_){ }
 }
 
   _toHour(val,fallback=0){ if(typeof val==='number'&&Number.isFinite(val)) return Math.max(0,Math.min(24,val)); if(typeof val==='string'&&val){ const h=parseInt(val.split(':')[0],10); if(Number.isFinite(h)) return Math.max(0,Math.min(24,h)); } return fallback; }
   _getSlotMinutes(){ const v=Number(this._config?.slot_minutes); return [15,30,45,60].includes(v)?v:60; }
-  _weekdayNames(locale='it'){ const base=new Date(Date.UTC(2020,10,2)); const fmt=new Intl.DateTimeFormat(locale||'it',{weekday:'long'}); return Array.from({length:7},(_,i)=>{ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); return fmt.format(d); }); }
+  _weekdayFormatForTier(){ return this._sizeTier==='xs' ? 'narrow' : (this._sizeTier==='sm' ? 'short' : 'long'); }
+  _weekdayNames(locale='it',format='long'){ const base=new Date(Date.UTC(2020,10,2)); const fmt=new Intl.DateTimeFormat(locale||'it',{weekday:format}); return Array.from({length:7},(_,i)=>{ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); return fmt.format(d); }); }
+
+  _onResize(){
+    if(this._resizeScheduled) return; this._resizeScheduled=true;
+    requestAnimationFrame(()=>{
+      this._resizeScheduled=false;
+      if(!this._layoutReady) return;
+      const w=this._els?.stage?.clientWidth||this.clientWidth||0;
+      const tier=w<340?'xs':(w<480?'sm':'lg');
+      if(tier!==this._sizeTier){
+        this._sizeTier=tier;
+        this._buildGrid();
+      }
+      this._rebuildOverlayColumns();
+    });
+  }
 
   _buildGrid(){
     const g=this._els.grid; if(!g) return;
     g.innerHTML='';
-    const days=this._weekdayNames(this._config.locale);
+    const days=this._weekdayNames(this._config.locale,this._weekdayFormatForTier());
     g.appendChild(this._cell('','day')); for(const d of days) g.appendChild(this._cell(d,'day'));
     const startHour=this._toHour(this._config.start_hour,6);
     const endHour=this._toHour(this._config.end_hour,22);
@@ -432,6 +473,13 @@ async _setAllEnabled(enabled){
     const st = this._hass.states?.[this._rulesEntityId];
     const rules = (st?.attributes?.rules) || [];
     if(!Array.isArray(rules) || !rules.length) return;
+
+    if(!enabled){
+      const activeCount = rules.filter(r => r?.enabled !== false).length;
+      if(!activeCount) return;
+      const ok = confirm(`Disabilitare tutte le ${activeCount} regole attive di questo planner?`);
+      if(!ok) return;
+    }
 
     // prendo gli id reali
     const ids = rules

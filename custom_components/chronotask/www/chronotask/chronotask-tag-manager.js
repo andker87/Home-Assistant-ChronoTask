@@ -179,8 +179,13 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       this._showWarn('Servizi ChronoTask non disponibili. Riavvia Home Assistant e ricarica la pagina.');
       return;
     }
-    const pid=this._plannerId();
     const tag=this._config.tag;
+    if(!enable){
+      const activeCount = this._rules().filter(r => _tagsToArray(r.tags).includes(tag) && r?.enabled !== false).length;
+      if(!activeCount) return;
+      if(!confirm(`Disabilitare le ${activeCount} regole con tag #${tag}?`)) return;
+    }
+    const pid=this._plannerId();
     const service = enable ? 'enable_tag' : 'disable_tag';
     const payload = pid ? { planner_id: pid, tag } : { tag };
     try{
