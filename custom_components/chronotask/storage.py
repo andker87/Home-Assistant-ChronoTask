@@ -7,7 +7,8 @@ import copy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .const import STORAGE_KEY_BASE, STORAGE_VERSION
+from .const import STORAGE_KEY_BASE, STORAGE_VERSION, CONF_SLOTS
+from .slots import slot_from_flat
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +55,24 @@ class PlannerStorage:
             else:
                 _LOGGER.warning("ChronoTask: formato storage non valido, reset.")
                 self._data = {"rules": []}
+
+        # Migrazione multi-slot: regole salvate prima di v1.2.0 non hanno
+        # "slots" — gliene sintetizziamo uno solo dai campi day/start/end/
+        # end_day esistenti, così restano identiche a prima ma nella forma
+        # nuova. Salviamo una sola volta se qualcosa è stato migrato, non a
+        # ogni avvio.
+        migrated_count = 0
+        for rule in self._data.get("rules", []):
+            slots = rule.get(CONF_SLOTS)
+            if not isinstance(slots, list) or not slots:
+                rule[CONF_SLOTS] = [slot_from_flat(rule)]
+                migrated_count += 1
+        if migrated_count:
+            _LOGGER.info(
+                "ChronoTask: migrate %d regole al formato multi-slot",
+                migrated_count,
+            )
+            await self.async_save()
 
     async def async_save(self) -> None:
         await self._store.async_save(self._data)

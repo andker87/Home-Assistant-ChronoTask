@@ -17,8 +17,8 @@ add_rule:
         text:
     day:
       name: Day of week
-      description: "Day of the week (0=Monday … 6=Sunday)."
-      required: true
+      description: "Day of the week (0=Monday … 6=Sunday). Required unless 'slots' is provided."
+      required: false
       example: 1
       selector:
         number:
@@ -27,21 +27,21 @@ add_rule:
           mode: box
     start:
       name: Start time
-      description: "Start time in HH:MM format."
-      required: true
+      description: "Start time in HH:MM format. Required unless 'slots' is provided."
+      required: false
       example: "07:30"
       selector:
         time:
     end:
       name: End time
-      description: "Optional end time in HH:MM format (used for visual duration and end action)."
+      description: "Optional end time in HH:MM format (used for visual duration and end action). Ignored if 'slots' is provided."
       required: false
       example: "09:00"
       selector:
         time:
     end_day:
       name: End day of week
-      description: "Optional day for the end action if different from the start day (0–6)."
+      description: "Optional day for the end action if different from the start day (0–6). Ignored if 'slots' is provided."
       required: false
       example: 1
       selector:
@@ -49,6 +49,13 @@ add_rule:
           min: 0
           max: 6
           mode: box
+    slots:
+      name: Time slots
+      description: "Optional: cover multiple days/times with a single shared action instead of the day/start/end/end_day fields above. A list of objects, each with day (0-6, required), start (HH:MM, required), end (HH:MM, optional), end_day (0-6, optional)."
+      required: false
+      example: '[{"day": 0, "start": "07:00", "end": "09:00"}, {"day": 2, "start": "07:00", "end": "09:00"}]'
+      selector:
+        object:
     service:
       name: Service (start)
       description: "Home Assistant service to call at start time. Format: domain.service"
@@ -154,6 +161,13 @@ update_rule:
           min: 0
           max: 6
           mode: box
+    slots:
+      name: Time slots
+      description: "Optional: replace ALL of this rule's time slots at once (a list of {day, start, end?, end_day?} objects), instead of day/start/end/end_day. Required to edit a rule that already has more than one slot — updating those individually is rejected once a rule has multiple slots, to avoid editing the wrong one."
+      required: false
+      example: '[{"day": 0, "start": "07:00", "end": "09:00"}, {"day": 2, "start": "07:00", "end": "09:00"}]'
+      selector:
+        object:
     service:
       name: Service (start)
       required: false
