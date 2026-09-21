@@ -877,18 +877,11 @@ async _setAllEnabled(enabled){
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
-    if(customElements.get('ha-entity-picker')){
-      const ep=document.createElement('ha-entity-picker');
-      ep.id='f_entity'; ep.hass=this._hass;
-      ep.setAttribute('allow-custom-entity',''); ep.setAttribute('required',''); ep.setAttribute('show-entity-id',''); ep.placeholder='Cerca entità…';
-      if(includeDomains) ep.includeDomains=includeDomains; if(excludeDomains) ep.excludeDomains=excludeDomains;
-      try{ ep.setAttribute('outlined',''); }catch(_){ }
-      row_entity.appendChild(ep); f_entity=ep;
-      const openIfPossible=()=>{ try{ if(typeof ep.open==='function') ep.open(); }catch(_){ } };
-      ['focus','click','value-changed','input'].forEach(evt=> ep.addEventListener(evt, openIfPossible));
-      let lastTimer=null; const pingRefresh=()=>{ if(lastTimer) clearTimeout(lastTimer); lastTimer=setTimeout(()=>openIfPossible(),60); };
-      ['value-changed','input'].forEach(evt=> ep.addEventListener(evt, pingRefresh));
-    } else {
+    // Fallback esplicito: <input> + <datalist>, usato sia se ha-entity-picker
+    // non è registrato sia se, pur essendo registrato, fallisce/rende a
+    // altezza zero (visto succedere dentro alcuni wrapper come Bubble Card).
+    const _buildPlainEntityInput=()=>{
+      row_entity.querySelectorAll('#f_entity, datalist[id^="entity_suggestions_"]').forEach(el=>el.remove());
       const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder='es. light.soggiorno'; inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
       const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
       const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
@@ -899,6 +892,43 @@ async _setAllEnabled(enabled){
       let t=null; const onType=()=>{ clearTimeout(t); t=setTimeout(()=>rebuild(inp.value||''),60); };
       ['input','change','keyup','focus'].forEach(evt=> inp.addEventListener(evt,onType));
       row_entity.appendChild(inp); row_entity.appendChild(dl); f_entity=inp;
+    };
+
+    let usedEntityPicker=false;
+    if(customElements.get('ha-entity-picker')){
+      try{
+        const ep=document.createElement('ha-entity-picker');
+        ep.id='f_entity'; ep.hass=this._hass;
+        // Stile esplicito sull'host: senza, se il rendering interno del
+        // componente fallisce (visto succedere dentro wrapper come Bubble
+        // Card) il campo resta di altezza zero e invisibile pur essendo nel
+        // DOM — stesso trattamento già dato a ha-icon-picker qui sopra.
+        ep.style.cssText='display:block;width:100%;box-sizing:border-box;min-height:40px';
+        ep.setAttribute('allow-custom-entity',''); ep.setAttribute('required',''); ep.setAttribute('show-entity-id',''); ep.placeholder='Cerca entità…';
+        if(includeDomains) ep.includeDomains=includeDomains; if(excludeDomains) ep.excludeDomains=excludeDomains;
+        try{ ep.setAttribute('outlined',''); }catch(_){ }
+        row_entity.appendChild(ep); f_entity=ep;
+        const openIfPossible=()=>{ try{ if(typeof ep.open==='function') ep.open(); }catch(_){ } };
+        ['focus','click','value-changed','input'].forEach(evt=> ep.addEventListener(evt, openIfPossible));
+        let lastTimer=null; const pingRefresh=()=>{ if(lastTimer) clearTimeout(lastTimer); lastTimer=setTimeout(()=>openIfPossible(),60); };
+        ['value-changed','input'].forEach(evt=> ep.addEventListener(evt, pingRefresh));
+        usedEntityPicker=true;
+        // Ultima rete di sicurezza: se anche con lo stile esplicito il
+        // componente rende a zero altezza (contenuto interno vuoto/fallito),
+        // passa al fallback semplice invece di lasciare un campo invisibile.
+        setTimeout(()=>{
+          try{
+            if(f_entity===ep && ep.isConnected && ep.offsetHeight<8){
+              _buildPlainEntityInput();
+            }
+          }catch(_){ }
+        },300);
+      }catch(_){
+        usedEntityPicker=false;
+      }
+    }
+    if(!usedEntityPicker){
+      _buildPlainEntityInput();
     }
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
