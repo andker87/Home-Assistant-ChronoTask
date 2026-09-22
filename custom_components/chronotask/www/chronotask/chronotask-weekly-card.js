@@ -924,16 +924,29 @@ async _setAllEnabled(enabled){
         let lastTimer=null; const pingRefresh=()=>{ if(lastTimer) clearTimeout(lastTimer); lastTimer=setTimeout(()=>openIfPossible(),60); };
         ['value-changed','input'].forEach(evt=> ep.addEventListener(evt, pingRefresh));
         usedEntityPicker=true;
-        // Ultima rete di sicurezza: se anche con lo stile esplicito il
-        // componente rende a zero altezza (contenuto interno vuoto/fallito),
-        // passa al fallback semplice invece di lasciare un campo invisibile.
-        setTimeout(()=>{
+        // Ultima rete di sicurezza: ha-entity-picker può restare nel DOM con
+        // lo shadow root vuoto (nessun errore, nessun'altezza a zero grazie
+        // allo style esplicito qui sopra, ma dentro non c'è letteralmente
+        // nulla) se il suo rendering interno fallisce silenziosamente — per
+        // esempio se manca al componente qualcosa che si aspetta nell'hass
+        // (registro entità/dispositivi, localize, ecc.) perché un wrapper
+        // come Bubble Card passa alle card che incapsula un hass ridotto.
+        // Un semplice controllo di altezza non basta (l'altezza è forzata
+        // dallo style inline anche a shadow root vuoto): controlliamo che
+        // dentro ci sia davvero qualcosa di renderizzato.
+        const looksEmpty=()=>{
+          try{ const sr=ep.shadowRoot; return !sr || sr.childElementCount===0; }
+          catch(_){ return false; }
+        };
+        const checkAndFallback=()=>{
           try{
-            if(f_entity===ep && ep.isConnected && ep.offsetHeight<8){
+            if(f_entity===ep && ep.isConnected && (looksEmpty() || ep.offsetHeight<8)){
               _buildPlainEntityInput();
             }
           }catch(_){ }
-        },300);
+        };
+        setTimeout(checkAndFallback,300);
+        setTimeout(checkAndFallback,1200);
       }catch(_){
         usedEntityPicker=false;
       }
