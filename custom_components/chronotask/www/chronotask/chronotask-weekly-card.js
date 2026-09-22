@@ -738,9 +738,9 @@ async _setAllEnabled(enabled){
     const content=document.createElement('div'); content.classList.add('apw-root'); content.style.minWidth='360px'; content.style.maxWidth='92vw';
     const dialogTitleText= existing ? 'Modifica regola' : (prefill ? 'Nuova regola (duplica)' : 'Nuova regola');
 
-    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:0 0 8px}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}</style>
+    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:0 0 8px}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}</style>
       <div class="dialog-header">
-        <ha-icon-button id="btn_close" aria-label="Chiudi" icon="mdi:close"></ha-icon-button>
+        <button type="button" class="icon-btn" id="btn_close" aria-label="Chiudi">✕</button>
         <div class="dialog-title" id="dlg_title">${dialogTitleText}</div>
         <mwc-button id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">Duplica</mwc-button>
         <mwc-button id="btn_delete_text" class="danger" style="${existing?'':'visibility:hidden'}">Elimina</mwc-button>
@@ -798,6 +798,24 @@ async _setAllEnabled(enabled){
     const f_tags=$('#f_tags');
     const slots_wrap=$('#slots_wrap');
 
+    // Chiudi/Annulla collegati SUBITO, prima di qualunque setup rischioso
+    // (picker HA creati a mano, render dei campi servizio, ecc.). Se
+    // qualcosa più avanti lancia un'eccezione, l'utente deve poter comunque
+    // chiudere il dialog invece di restarci bloccato dentro senza via
+    // d'uscita — prima questi due erano collegati in fondo alla funzione,
+    // insieme a Salva, quindi un errore ovunque nel mezzo li disattivava
+    // tutti e tre in blocco.
+    const doClose=()=>{
+      try{ dlg.close(); }catch(_){ }
+      // Non fidarsi che l'evento 'closed' scatti sempre (dipende dal
+      // funzionamento interno di ha-dialog): puliamo comunque a mano.
+      try{ dlg.remove(); }catch(_){ }
+      if(this._activeDialog===dlg) this._activeDialog=null;
+    };
+    const btn_close_early=$('#btn_close'); const btn_cancel_early=$('#btn_cancel');
+    if(btn_close_early) btn_close_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
+    if(btn_cancel_early) btn_cancel_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
+
     const stepSec=this._getSlotMinutes()*60;
     const DAY_OPTIONS='<option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option>';
 
@@ -812,7 +830,7 @@ async _setAllEnabled(enabled){
       row.innerHTML=`
         <div class="slot-row-head">
           <span class="slot-row-title">Fascia</span>
-          <ha-icon-button class="btn_remove_slot" icon="mdi:delete-outline" aria-label="Rimuovi fascia"></ha-icon-button>
+          <button type="button" class="icon-btn small btn_remove_slot" aria-label="Rimuovi fascia">🗑</button>
         </div>
         <div class="two">
           <div class="form-row"><label>Giorno</label><select class="f_slot_day">${DAY_OPTIONS}</select></div>
@@ -870,15 +888,28 @@ async _setAllEnabled(enabled){
     }
 
     let f_icon=null, icon_picker=null;
-    if(customElements.get('ha-icon-picker')){
-      icon_picker=document.createElement('ha-icon-picker');
-      icon_picker.hass=this._hass; icon_picker.label='Seleziona icona (mdi)'; icon_picker.value='';
-      try{ icon_picker.setAttribute('outlined',''); }catch(_){ }
-      icon_picker.style.cssText='display:block;width:100%;box-sizing:border-box;border:1px solid var(--divider-color);border-radius:8px;min-height:40px;padding:6px 8px;background:var(--card-background-color);color:var(--primary-text-color)';
-      icon_wrap.appendChild(icon_picker);
-      icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
-    } else {
+    const _buildPlainIconInput=()=>{
+      icon_picker=null;
       f_icon=document.createElement('input'); f_icon.id='f_icon'; f_icon.placeholder='mdi:lightbulb'; f_icon.style.cssText='width:100%;box-sizing:border-box;min-height:40px'; icon_wrap.appendChild(f_icon);
+    };
+    if(customElements.get('ha-icon-picker')){
+      // Come ha-entity-picker, anche questo componente HA creato a mano può
+      // fallire silenziosamente in contesti come Bubble Card: non lasciamo
+      // che un errore qui (sincrono o nella creazione) blocchi il resto del
+      // dialog, compresi i pulsanti collegati più avanti.
+      try{
+        icon_picker=document.createElement('ha-icon-picker');
+        icon_picker.hass=this._hass; icon_picker.label='Seleziona icona (mdi)'; icon_picker.value='';
+        try{ icon_picker.setAttribute('outlined',''); }catch(_){ }
+        icon_picker.style.cssText='display:block;width:100%;box-sizing:border-box;border:1px solid var(--divider-color);border-radius:8px;min-height:40px;padding:6px 8px;background:var(--card-background-color);color:var(--primary-text-color)';
+        icon_wrap.appendChild(icon_picker);
+        icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
+      }catch(err){
+        console.error('ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',err);
+        _buildPlainIconInput();
+      }
+    } else {
+      _buildPlainIconInput();
     }
     const getIconValue=()=> (icon_picker? this._sanitizeIcon(icon_picker.value): this._sanitizeIcon(f_icon?.value||''));
     const setIconValue=(val)=>{ const v=this._sanitizeIcon(val); if(icon_picker) icon_picker.value=v; else if(f_icon) f_icon.value=v; };
@@ -1079,12 +1110,11 @@ if (prefill && !existing) {
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
     };
 
-    refreshServiceSelects();
+    try{ refreshServiceSelects(); }catch(err){ console.error('ChronoTask: errore inizializzazione action selector:',err); }
     const f_entityEl=row_entity.querySelector('#f_entity'); if(f_entityEl){ const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focus'].forEach(evt=> f_entityEl.addEventListener(evt,onEntityChange)); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
 
-    const doClose=()=>{ try{ dlg.close(); }catch(_){ } };
     const getPlannerId=()=> this._getPlannerId();
 
 // Duplica
@@ -1280,10 +1310,11 @@ if (btn_duplicate) {
     };
     if(btn_delete) btn_delete.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doDelete(); });
 
-    const btn_save=content.querySelector('#btn_save'); const btn_cancel=content.querySelector('#btn_cancel'); const btn_close=content.querySelector('#btn_close');
+    // Chiudi/Annulla sono già collegati in cima alla funzione (vedi
+    // doClose/btn_close_early/btn_cancel_early): qui resta solo Salva, la
+    // cui logica dipende da tutto il setup del form fatto nel frattempo.
+    const btn_save=content.querySelector('#btn_save');
     if(btn_save) btn_save.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doSave(); });
-    if(btn_cancel) btn_cancel.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
-    if(btn_close) btn_close.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
 
     content.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); doSave(); } });
 
@@ -1298,9 +1329,11 @@ if (btn_duplicate) {
     if(existing?.icon) setIconValue(existing.icon);
     else if(prefill?.icon) setIconValue(prefill.icon);
 
-    const eid=getEntityId();
-    _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
-    _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
+    try{
+      const eid=getEntityId();
+      _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
+      _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
+    }catch(err){ console.error('ChronoTask: errore render campi action:',err); }
   }
 }
 
