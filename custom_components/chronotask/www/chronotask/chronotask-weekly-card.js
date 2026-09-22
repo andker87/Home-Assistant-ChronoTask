@@ -883,16 +883,20 @@ async _setAllEnabled(enabled){
     const getIconValue=()=> (icon_picker? this._sanitizeIcon(icon_picker.value): this._sanitizeIcon(f_icon?.value||''));
     const setIconValue=(val)=>{ const v=this._sanitizeIcon(val); if(icon_picker) icon_picker.value=v; else if(f_icon) f_icon.value=v; };
 
-    // Entity picker
+    // Entity picker: sempre il campo di testo semplice + suggerimenti.
+    // ha-entity-picker è stato provato in precedenza, ma nei contesti dove
+    // un wrapper come Bubble Card passa alle card che incapsula un oggetto
+    // hass ridotto, il suo rendering interno fallisce (crash asincrono su
+    // hass.localize, non intercettabile in modo pulito da qui) lasciando
+    // uno shadow root vuoto. Piuttosto che rincorrere ogni suo modo di
+    // fallire silenziosamente, usiamo direttamente l'unica versione che si
+    // è dimostrata affidabile ovunque: non dipende da nient'altro oltre a
+    // hass.states, che la card usa già per tutto il resto.
     let f_entity;
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
-    // Fallback esplicito: <input> + <datalist>, usato sia se ha-entity-picker
-    // non è registrato sia se, pur essendo registrato, fallisce/rende a
-    // altezza zero (visto succedere dentro alcuni wrapper come Bubble Card).
-    const _buildPlainEntityInput=()=>{
-      row_entity.querySelectorAll('#f_entity, datalist[id^="entity_suggestions_"]').forEach(el=>el.remove());
+    {
       const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder='es. light.soggiorno'; inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
       const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
       const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
@@ -903,56 +907,6 @@ async _setAllEnabled(enabled){
       let t=null; const onType=()=>{ clearTimeout(t); t=setTimeout(()=>rebuild(inp.value||''),60); };
       ['input','change','keyup','focus'].forEach(evt=> inp.addEventListener(evt,onType));
       row_entity.appendChild(inp); row_entity.appendChild(dl); f_entity=inp;
-    };
-
-    let usedEntityPicker=false;
-    if(customElements.get('ha-entity-picker')){
-      try{
-        const ep=document.createElement('ha-entity-picker');
-        ep.id='f_entity'; ep.hass=this._hass;
-        // Stile esplicito sull'host: senza, se il rendering interno del
-        // componente fallisce (visto succedere dentro wrapper come Bubble
-        // Card) il campo resta di altezza zero e invisibile pur essendo nel
-        // DOM — stesso trattamento già dato a ha-icon-picker qui sopra.
-        ep.style.cssText='display:block;width:100%;box-sizing:border-box;min-height:40px';
-        ep.setAttribute('allow-custom-entity',''); ep.setAttribute('required',''); ep.setAttribute('show-entity-id',''); ep.placeholder='Cerca entità…';
-        if(includeDomains) ep.includeDomains=includeDomains; if(excludeDomains) ep.excludeDomains=excludeDomains;
-        try{ ep.setAttribute('outlined',''); }catch(_){ }
-        row_entity.appendChild(ep); f_entity=ep;
-        const openIfPossible=()=>{ try{ if(typeof ep.open==='function') ep.open(); }catch(_){ } };
-        ['focus','click','value-changed','input'].forEach(evt=> ep.addEventListener(evt, openIfPossible));
-        let lastTimer=null; const pingRefresh=()=>{ if(lastTimer) clearTimeout(lastTimer); lastTimer=setTimeout(()=>openIfPossible(),60); };
-        ['value-changed','input'].forEach(evt=> ep.addEventListener(evt, pingRefresh));
-        usedEntityPicker=true;
-        // Ultima rete di sicurezza: ha-entity-picker può restare nel DOM con
-        // lo shadow root vuoto (nessun errore, nessun'altezza a zero grazie
-        // allo style esplicito qui sopra, ma dentro non c'è letteralmente
-        // nulla) se il suo rendering interno fallisce silenziosamente — per
-        // esempio se manca al componente qualcosa che si aspetta nell'hass
-        // (registro entità/dispositivi, localize, ecc.) perché un wrapper
-        // come Bubble Card passa alle card che incapsula un hass ridotto.
-        // Un semplice controllo di altezza non basta (l'altezza è forzata
-        // dallo style inline anche a shadow root vuoto): controlliamo che
-        // dentro ci sia davvero qualcosa di renderizzato.
-        const looksEmpty=()=>{
-          try{ const sr=ep.shadowRoot; return !sr || sr.childElementCount===0; }
-          catch(_){ return false; }
-        };
-        const checkAndFallback=()=>{
-          try{
-            if(f_entity===ep && ep.isConnected && (looksEmpty() || ep.offsetHeight<8)){
-              _buildPlainEntityInput();
-            }
-          }catch(_){ }
-        };
-        setTimeout(checkAndFallback,300);
-        setTimeout(checkAndFallback,1200);
-      }catch(_){
-        usedEntityPicker=false;
-      }
-    }
-    if(!usedEntityPicker){
-      _buildPlainEntityInput();
     }
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
