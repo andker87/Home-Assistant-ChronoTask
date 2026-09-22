@@ -25,7 +25,7 @@ class PlannerRulesSensor(SensorEntity):
         self._name = name
         self._attr_name = f"{name} Rules"
         self._attr_unique_id = f"{PLANNER_SENSOR_SUFFIX}_{entry_id}"
-        self._capabilities = {"end_action": True, "tags": True}
+        self._capabilities = {"end_action": True, "tags": True, "multi_slot": True}
         self._unsub = None
         self._attr_extra_state_attributes = {}
 

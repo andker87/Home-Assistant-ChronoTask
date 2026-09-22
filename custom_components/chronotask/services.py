@@ -33,9 +33,11 @@ from .const import (
     CONF_TAGS,
     CONF_COLOR,
     CONF_ICON,
+    CONF_SLOTS,
     ATTR_ID,
     ATTR_PLANNER_ID,
 )
+from .slots import slot_from_flat, mirror_flat_from_slots
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +52,28 @@ _time_str = vol.All(cv.string, vol.Match(_TIME_RE, msg="Formato orario non valid
 # Per i campi opzionali (end) una stringa vuota è ammessa: significa "non impostato"
 # e viene rimossa da _strip_empty_optional_fields prima del salvataggio.
 _time_str_optional = vol.Any("", _time_str)
+_day_int = vol.All(vol.Coerce(int), vol.Range(min=0, max=6))
+
+# Multi-slot: una regola può avere più fasce (day/start/end?/end_day?) invece
+# di una sola. "slots" è opzionale sia su add_rule che su update_rule, per
+# restare compatibile con chi chiama i servizi con i soli campi flat.
+_SLOT_SCHEMA = vol.Schema({
+    vol.Required(CONF_DAY): _day_int,
+    vol.Required(CONF_START): _time_str,
+    vol.Optional(CONF_END): _time_str_optional,
+    vol.Optional(CONF_END_DAY): _day_int,
+})
+_slots_list = vol.All(cv.ensure_list, [_SLOT_SCHEMA], vol.Length(min=1))
+
+
+def _require_day_start_or_slots(data: dict) -> dict:
+    """Su add_rule: serve 'day'+'start', oppure una lista 'slots' non vuota."""
+    has_flat = data.get(CONF_DAY) is not None and data.get(CONF_START)
+    has_slots = isinstance(data.get(CONF_SLOTS), list) and len(data[CONF_SLOTS]) > 0
+    if not has_flat and not has_slots:
+        raise vol.Invalid("Specifica 'day' e 'start', oppure 'slots'.")
+    return data
+
 
 _BASE_PLANNER = vol.Schema({
     vol.Optional(ATTR_PLANNER_ID): cv.string,
@@ -59,30 +83,38 @@ _RULE_ID_SCHEMA = _BASE_PLANNER.extend({
     vol.Required(ATTR_ID): cv.string,
 })
 
-_ADD_RULE_SCHEMA = _BASE_PLANNER.extend({
-    vol.Required(CONF_TITLE): cv.string,
-    vol.Required(CONF_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
-    vol.Required(CONF_START): _time_str,
-    vol.Required(CONF_SERVICE): cv.string,
-    vol.Optional(CONF_END): _time_str_optional,
-    vol.Optional(CONF_END_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
-    vol.Optional(CONF_END_SERVICE): cv.string,
-    vol.Optional(CONF_SERVICE_DATA): dict,
-    vol.Optional(CONF_END_SERVICE_DATA): dict,
-    vol.Optional(CONF_ENABLED, default=True): cv.boolean,
-    vol.Optional(CONF_TAGS, default=[]): vol.Any(cv.string, list),
-    vol.Optional(CONF_COLOR): cv.string,
-    vol.Optional(CONF_ICON): cv.string,
-    vol.Optional(ATTR_ID): cv.string,
-})
+_ADD_RULE_SCHEMA = vol.All(
+    _BASE_PLANNER.extend({
+        vol.Required(CONF_TITLE): cv.string,
+        # day/start restano il modo più semplice per creare una regola con
+        # una sola fascia; diventano facoltativi solo se si passa 'slots'
+        # (vedi _require_day_start_or_slots).
+        vol.Optional(CONF_DAY): _day_int,
+        vol.Optional(CONF_START): _time_str,
+        vol.Required(CONF_SERVICE): cv.string,
+        vol.Optional(CONF_END): _time_str_optional,
+        vol.Optional(CONF_END_DAY): _day_int,
+        vol.Optional(CONF_SLOTS): _slots_list,
+        vol.Optional(CONF_END_SERVICE): cv.string,
+        vol.Optional(CONF_SERVICE_DATA): dict,
+        vol.Optional(CONF_END_SERVICE_DATA): dict,
+        vol.Optional(CONF_ENABLED, default=True): cv.boolean,
+        vol.Optional(CONF_TAGS, default=[]): vol.Any(cv.string, list),
+        vol.Optional(CONF_COLOR): cv.string,
+        vol.Optional(CONF_ICON): cv.string,
+        vol.Optional(ATTR_ID): cv.string,
+    }),
+    _require_day_start_or_slots,
+)
 
 _UPDATE_RULE_SCHEMA = _BASE_PLANNER.extend({
     vol.Required(ATTR_ID): cv.string,
     vol.Optional(CONF_TITLE): cv.string,
-    vol.Optional(CONF_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
+    vol.Optional(CONF_DAY): _day_int,
     vol.Optional(CONF_START): _time_str,
     vol.Optional(CONF_END): _time_str_optional,
-    vol.Optional(CONF_END_DAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
+    vol.Optional(CONF_END_DAY): _day_int,
+    vol.Optional(CONF_SLOTS): _slots_list,
     vol.Optional(CONF_SERVICE): cv.string,
     vol.Optional(CONF_SERVICE_DATA): dict,
     vol.Optional(CONF_END_SERVICE): cv.string,
@@ -178,6 +210,17 @@ def _strip_empty_optional_fields(data: dict) -> dict:
     return {k: v for k, v in data.items() if not (k in optional_str_fields and v == "")}
 
 
+def _clean_slot(slot: dict) -> dict:
+    """Normalizza un singolo slot: rimuove end/end_day vuoti (già validati da
+    _SLOT_SCHEMA, qui si toglie solo la stringa vuota ammessa per 'end')."""
+    out = {CONF_DAY: slot.get(CONF_DAY), CONF_START: slot.get(CONF_START)}
+    if slot.get(CONF_END):
+        out[CONF_END] = slot[CONF_END]
+    if slot.get(CONF_END_DAY) is not None:
+        out[CONF_END_DAY] = slot[CONF_END_DAY]
+    return out
+
+
 async def _set_tag_enabled(hass: HomeAssistant, call: ServiceCall, enabled: bool) -> None:
     """Logica condivisa per enable_tag e disable_tag."""
     pid = _require_planner(hass, call)
@@ -229,6 +272,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         else:
             data.pop(CONF_END_SERVICE_DATA, None)
 
+        if isinstance(data.get(CONF_SLOTS), list) and data[CONF_SLOTS]:
+            data[CONF_SLOTS] = [_clean_slot(s) for s in data[CONF_SLOTS]]
+            mirror_flat_from_slots(data)
+        else:
+            data[CONF_SLOTS] = [slot_from_flat(data)]
+
         data[ATTR_ID] = data.get(ATTR_ID) or str(uuid.uuid4())
 
         storage.upsert_rule(data)
@@ -268,11 +317,38 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             else:
                 data.pop(CONF_END_SERVICE_DATA, None)
 
+        # Multi-slot: "slots" sostituisce l'intera lista (e i campi flat ne
+        # restano lo specchio); i campi flat day/start/end/end_day da soli
+        # aggiornano l'unico slot SOLO se la regola non ne ha già più di uno
+        # — altrimenti non è chiaro quale fascia modificare, meglio un
+        # errore esplicito che disallineare silenziosamente slots dal mirror.
+        incoming_slots = data.get(CONF_SLOTS)
+        has_explicit_slots = isinstance(incoming_slots, list) and len(incoming_slots) > 0
+        flat_slot_fields_in_data = any(
+            k in data for k in (CONF_DAY, CONF_START, CONF_END, CONF_END_DAY)
+        )
+
+        if has_explicit_slots:
+            data[CONF_SLOTS] = [_clean_slot(s) for s in incoming_slots]
+        elif flat_slot_fields_in_data:
+            existing_slots = rule.get(CONF_SLOTS)
+            if isinstance(existing_slots, list) and len(existing_slots) > 1:
+                raise HomeAssistantError(
+                    f"La regola '{rid}' ha più fasce orarie: usa il campo 'slots' "
+                    "per modificarla invece dei singoli campi day/start/end/end_day."
+                )
+
         new_rule = copy.deepcopy(rule)
         for k, v in data.items():
             if k == ATTR_ID:
                 continue
             new_rule[k] = v
+
+        if has_explicit_slots:
+            mirror_flat_from_slots(new_rule)
+        elif flat_slot_fields_in_data:
+            new_rule[CONF_SLOTS] = [slot_from_flat(new_rule)]
+
         rules[idx] = new_rule
         storage.set_rules(rules)
 

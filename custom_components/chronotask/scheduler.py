@@ -19,6 +19,7 @@ from .const import (
     CONF_END_SERVICE,
     CONF_END_SERVICE_DATA,
 )
+from .slots import expand_rules
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +39,10 @@ class WeeklyScheduler:
                 pass
         self._unsubs.clear()
 
-        for rule in self.storage.list_rules():
+        # expand_rules "appiattisce" ogni (regola, slot) in un dict con la
+        # stessa forma di prima (un day/start/end/end_day) più _slot_index,
+        # così _schedule_start/_schedule_end restano quasi invariati.
+        for rule in expand_rules(self.storage.list_rules()):
             self._schedule_start(rule)
             self._schedule_end(rule)
 
@@ -64,7 +68,8 @@ class WeeklyScheduler:
             return
 
         rule_id = rule.get(ATTR_ID)
-        key = f"{rule_id}:start"
+        slot_idx = rule.get("_slot_index", 0)
+        key = f"{rule_id}:{slot_idx}:start"
         next_local = self._next_local_dt(int(rule[CONF_DAY]), rule[CONF_START])
         if not next_local:
             return
@@ -92,8 +97,9 @@ class WeeklyScheduler:
             return
 
         rule_id = rule.get(ATTR_ID)
+        slot_idx = rule.get("_slot_index", 0)
         end_day = int(rule.get(CONF_END_DAY, rule.get(CONF_DAY)))
-        key = f"{rule_id}:end"
+        key = f"{rule_id}:{slot_idx}:end"
         next_local = self._next_local_dt(end_day, rule[CONF_END])
         if not next_local:
             return
@@ -143,10 +149,19 @@ class WeeklyScheduler:
                 rule.get(ATTR_ID), part, err,
             )
         finally:
-            # Ri-fetch la regola da storage per avere i dati aggiornati alla prossima esecuzione
-            fresh_rules = self.storage.list_rules()
+            # Ri-fetch la regola da storage per avere i dati aggiornati alla
+            # prossima esecuzione, e ripianifica solo LO SLOT che è scattato
+            # (le altre fasce della stessa regola hanno i loro timer separati).
+            # Se lo slot non esiste più (rimosso/riordinato nel frattempo) non
+            # facciamo nulla: qualunque modifica alla regola passa comunque
+            # da async_reschedule_all(), che si autoripara.
+            slot_idx = rule.get("_slot_index", 0)
+            fresh_rules = expand_rules(self.storage.list_rules())
             fresh = next(
-                (r for r in fresh_rules if r.get(ATTR_ID) == rule.get(ATTR_ID)),
+                (
+                    r for r in fresh_rules
+                    if r.get(ATTR_ID) == rule.get(ATTR_ID) and r.get("_slot_index") == slot_idx
+                ),
                 None,
             )
             if fresh:
