@@ -169,7 +169,7 @@ _ensureLayout(){
     }
     .rule.temp{opacity:.7}
     .rule.disabled{
-      opacity:.45;
+      opacity:.62;
       filter:saturate(.7);
       background-image:repeating-linear-gradient(45deg,
         rgba(255,255,255,.18) 0,
@@ -188,23 +188,30 @@ _ensureLayout(){
       text-overflow:ellipsis;
       flex:1 1 auto;
     }
+    .day{ overflow:hidden; text-overflow:ellipsis; }
 
     .section{margin-top:12px;padding-top:12px;border-top:1px solid var(--divider-color)}
     .section-title{font-weight:600;margin-bottom:6px}
 
-    /* FIX 2: compatta su viewport piccola */
-    @media (max-width: 480px){
+    /* Tutta la compattazione sotto si basa sulla dimensione REALE della card
+       (container query su .wrap, non sul viewport del browser): fondamentale
+       quando la card vive dentro un wrapper come Bubble Card che la rimpicciolisce
+       indipendentemente dalla finestra. I nomi dei giorni vengono anche
+       riscritti in JS (breve/estremamente breve) da un ResizeObserver, perché
+       un puro troncamento CSS di "mercoledì" resta illeggibile sotto una certa
+       larghezza di colonna. */
+    @container (max-width: 480px){
+      .hdr{ grid-template-columns: 1fr auto; row-gap:8px; }
+      .hdr-left{ grid-column: 1 / -1; }
+      .hdr-center{ justify-self:start; }
+      .hdr-right{ justify-self:end; }
+
       .wrap{ padding: 6px; }
-      .grid{ min-width: 0; }
-      /* ✅ mobile: colonna orari un filo più compatta */
-      .grid{ grid-template-columns: minmax(72px, 8ch) repeat(7, 1fr); }
+      .grid{ min-width: 0; grid-template-columns: minmax(72px, 8ch) repeat(7, 1fr); }
       .cell{ height: 36px; }
       .time{ font-size: 11px; padding: 3px; }
       .day{ font-size: 11px; padding: 5px; }
-    }
 
-    /* ✅ leggibilità regole quando la CARD è stretta */
-    @container (max-width: 480px){
       .rule{
         padding:2px 4px;
         font-size:11px;
@@ -212,6 +219,14 @@ _ensureLayout(){
       }
       /* Priorità testo su card stretta */
       .rule ha-icon{ display:none; }
+    }
+
+    @container (max-width: 340px){
+      .grid{ grid-template-columns: minmax(52px, 6ch) repeat(7, 1fr); }
+      .cell{ height: 30px; }
+      .time{ font-size: 10px; padding: 2px; }
+      .day{ font-size: 10px; padding: 3px; }
+      .rule{ font-size:10px; padding:1px 3px; }
     }
 
   </style>
@@ -255,16 +270,42 @@ _ensureLayout(){
   this._buildGrid();
   this._rebuildOverlayColumns();
   this._layoutReady=true;
+
+  // Adatta la card alla propria larghezza reale (es. dentro Bubble Card o
+  // una colonna stretta), non solo al viewport del browser: le regole
+  // @container in CSS bastano per spaziature/font, ma i nomi dei giorni sono
+  // testo generato in JS e vanno riscritti esplicitamente quando c'è poco
+  // spazio per colonna, altrimenti restano illeggibili troncati dal CSS.
+  try{
+    this._ro=new ResizeObserver(()=> this._onResize());
+    this._ro.observe(this);
+  }catch(_){ }
 }
 
   _toHour(val,fallback=0){ if(typeof val==='number'&&Number.isFinite(val)) return Math.max(0,Math.min(24,val)); if(typeof val==='string'&&val){ const h=parseInt(val.split(':')[0],10); if(Number.isFinite(h)) return Math.max(0,Math.min(24,h)); } return fallback; }
   _getSlotMinutes(){ const v=Number(this._config?.slot_minutes); return [15,30,45,60].includes(v)?v:60; }
-  _weekdayNames(locale='it'){ const base=new Date(Date.UTC(2020,10,2)); const fmt=new Intl.DateTimeFormat(locale||'it',{weekday:'long'}); return Array.from({length:7},(_,i)=>{ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); return fmt.format(d); }); }
+  _weekdayFormatForTier(){ return this._sizeTier==='xs' ? 'narrow' : (this._sizeTier==='sm' ? 'short' : 'long'); }
+  _weekdayNames(locale='it',format='long'){ const base=new Date(Date.UTC(2020,10,2)); const fmt=new Intl.DateTimeFormat(locale||'it',{weekday:format}); return Array.from({length:7},(_,i)=>{ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); return fmt.format(d); }); }
+
+  _onResize(){
+    if(this._resizeScheduled) return; this._resizeScheduled=true;
+    requestAnimationFrame(()=>{
+      this._resizeScheduled=false;
+      if(!this._layoutReady) return;
+      const w=this._els?.stage?.clientWidth||this.clientWidth||0;
+      const tier=w<340?'xs':(w<480?'sm':'lg');
+      if(tier!==this._sizeTier){
+        this._sizeTier=tier;
+        this._buildGrid();
+      }
+      this._rebuildOverlayColumns();
+    });
+  }
 
   _buildGrid(){
     const g=this._els.grid; if(!g) return;
     g.innerHTML='';
-    const days=this._weekdayNames(this._config.locale);
+    const days=this._weekdayNames(this._config.locale,this._weekdayFormatForTier());
     g.appendChild(this._cell('','day')); for(const d of days) g.appendChild(this._cell(d,'day'));
     const startHour=this._toHour(this._config.start_hour,6);
     const endHour=this._toHour(this._config.end_hour,22);
@@ -316,6 +357,53 @@ _ensureLayout(){
 
   _sanitizeIcon(iconRaw){ const v=String(iconRaw||'').trim(); return v.startsWith('mdi:')?v:''; }
   _uidForRule(r){ const real=r?.id??r?.uid; if(real!=null&&String(real)!=='') return String(real); const day=Number(r?.day??r?.weekday??-1); const start=String(r?.start||r?.time||'').slice(0,5); const end=String(r?.end||'').slice(0,5); const title=String(r?.title||r?.service||''); const svc=String(r?.service||''); const esvc=String(r?.end_service||''); return 's:'+[day,start,end,title,svc,esvc].join('|'); }
+
+  // Multi-slot: un uid per blocco è "<uid regola>::s<indice slot>", perché
+  // una regola può renderizzare più blocchi (uno per fascia oraria).
+  // ruleOrUid può essere l'oggetto regola completo oppure già un id/uid.
+  _uidForSlot(ruleOrUid,idx){
+    const base=(ruleOrUid&&typeof ruleOrUid==='object')?this._uidForRule(ruleOrUid):String(ruleOrUid);
+    return `${base}::s${idx}`;
+  }
+
+  // Slot effettivi di una regola: rule.slots se presente e non vuoto,
+  // altrimenti un singolo slot ricostruito dai campi flat legacy
+  // (day/start/end/end_day) — stessa logica di fallback usata lato backend
+  // (slots.py::iter_slots). Unica fonte di verità per questo fallback,
+  // usata sia per il rendering (_expandRuleSlots) sia per il confronto
+  // ottimistico (_slotsSignature).
+  _effectiveSlots(rule){
+    if(Array.isArray(rule?.slots)&&rule.slots.length) return rule.slots;
+    return [{
+      day: rule?.day??rule?.weekday,
+      start: rule?.start??rule?.time,
+      ...(rule?.end?{end:rule.end}:{}),
+      ...(rule?.end_day!=null&&rule?.end_day!==''?{end_day:rule.end_day}:{}),
+    }];
+  }
+
+  // Vista "appiattita" di UNO slot: {...rule, ...slot}, senza ereditare
+  // end/end_day di un ALTRO slot della stessa regola quando questo slot non
+  // li ha (rule.end/rule.end_day sono lo specchio di slots[0] lato backend,
+  // quindi andrebbero rimossi esplicitamente per gli slot successivi).
+  _flattenSlot(rule,slot){
+    const flat={ ...rule, ...slot };
+    if(!('end' in slot)) delete flat.end;
+    if(!('end_day' in slot)) delete flat.end_day;
+    return flat;
+  }
+
+  // Espande una regola nelle sue fasce, restituendo per ciascuna una vista
+  // "appiattita" {...rule, ...slot, _slot_index} così _decorateBlock/
+  // _computeGeom restano invariati (operano già su un oggetto con un solo
+  // day/start/end/end_day, esattamente come prima del multi-slot).
+  _expandRuleSlots(rule){
+    return this._effectiveSlots(rule).map((slot,idx)=>{
+      const flat=this._flattenSlot(rule,slot);
+      flat._slot_index=idx;
+      return flat;
+    });
+  }
 
   _decorateBlock(block,rule){
     const color=_normalizeHex(rule.color||rule.ui_color||this._config.default_color,this._config.default_color);
@@ -386,12 +474,19 @@ _ensureLayout(){
 
   _findRuleBlockByUid(uid){ if(!uid) return null; try{ return this._els?.overlay?.querySelector(`.rule[data-uid="${_cssEscape(String(uid))}"]`)||null; }catch(_){ return null; } }
 
+  _slotsSignature(r){
+    return this._effectiveSlots(r).map(s=>[
+      Number(s.day),
+      String(s.start||'').slice(0,5),
+      String(s.end||'').slice(0,5),
+      (s.end_day!=null&&s.end_day!=='')?Number(s.end_day):'',
+    ].join('|')).join(';');
+  }
+
   _rulesEqual(a,b){
     if(!a||!b) return false;
     const g=(r)=>({
-      day:Number(r.day??r.weekday),
-      start:String(r.start||r.time||'').slice(0,5),
-      end:String(r.end||'').slice(0,5),
+      slots:this._slotsSignature(r),
       title:String(r.title||r.service||''),
       color:String(r.color||r.ui_color||''),
       icon:(r.icon&&String(r.icon).startsWith('mdi:'))?String(r.icon):'',
@@ -401,7 +496,7 @@ _ensureLayout(){
       tags:_tagsToArray(r.tags).sort().join('|')
     });
     const A=g(a),B=g(b);
-    return A.day===B.day&&A.start===B.start&&A.end===B.end&&A.title===B.title&&A.color===B.color&&A.icon===B.icon&&A.service===B.service&&A.end_service===B.end_service&&A.enabled===B.enabled&&A.tags===B.tags;
+    return A.slots===B.slots&&A.title===B.title&&A.color===B.color&&A.icon===B.icon&&A.service===B.service&&A.end_service===B.end_service&&A.enabled===B.enabled&&A.tags===B.tags;
   }
 
 
@@ -432,6 +527,13 @@ async _setAllEnabled(enabled){
     const st = this._hass.states?.[this._rulesEntityId];
     const rules = (st?.attributes?.rules) || [];
     if(!Array.isArray(rules) || !rules.length) return;
+
+    if(!enabled){
+      const activeCount = rules.filter(r => r?.enabled !== false).length;
+      if(!activeCount) return;
+      const ok = confirm(`Disabilitare tutte le ${activeCount} regole attive di questo planner?`);
+      if(!ok) return;
+    }
 
     // prendo gli id reali
     const ids = rules
@@ -515,46 +617,49 @@ async _setAllEnabled(enabled){
 
     const seenUids=new Set();
     for(const r of rules){
-      const uid=this._uidForRule(r);
-      const day=Number(r.day??r.weekday);
-      if(Number.isNaN(day)||day<0||day>6) continue;
-
       const realId = (r.id ?? r.uid ?? null);
       const pending = realId ? this._pendingEdits.get(String(realId)) : null;
 
       if (pending) {
         if (!this._rulesEqual(r, pending.payload)) {
-          // Mantieni il blocco ottimistico e non renderizzare quello reale ancora
+          // Il sensore non riflette ancora l'edit ottimistico (può aver
+          // cambiato anche il NUMERO di fasce): non renderizzare nessuno dei
+          // blocchi reali di questa regola finché non arriva l'update.
           continue;
         } else {
-          // Il sensore riflette -> rimuovi stato pending e normalizza eventuale blocco ottimistico
-          const pendEl = overlay.querySelector(`.rule[data-pending-id="${_cssEscape(String(realId))}"]`);
-          if (pendEl) {
+          // Il sensore riflette -> rimuovi stato pending e normalizza i blocchi ottimistici
+          overlay.querySelectorAll(`.rule[data-pending-id="${_cssEscape(String(realId))}"]`).forEach(pendEl=>{
             pendEl.classList.remove('pending');
             pendEl.removeAttribute('data-pending-id');
-          }
+          });
           this._pendingEdits.delete(String(realId));
         }
       }
 
-      seenUids.add(uid);
-      let block=existingBlocks.get(uid);
-      if(!block){
-        const daycol=this._ensureDayColumn(day); if(!daycol) continue;
-        block=document.createElement('div');
-        block.className='rule';
-        block.dataset.uid=uid;
-        if (realId!=null) block.dataset.realId = String(realId);
-        daycol.appendChild(block);
-        block.addEventListener('click',(ev)=>{
-          ev.preventDefault(); ev.stopPropagation();
-          requestAnimationFrame(()=> this._openDialogFresh(r, block));
-        });
-      } else {
-        if (realId!=null) block.dataset.realId = String(realId);
-      }
+      for(const sv of this._expandRuleSlots(r)){
+        const day=Number(sv.day??sv.weekday);
+        if(Number.isNaN(day)||day<0||day>6) continue;
 
-      this._decorateBlock(block,r);
+        const uid=this._uidForSlot(r, sv._slot_index);
+        seenUids.add(uid);
+        let block=existingBlocks.get(uid);
+        if(!block){
+          const daycol=this._ensureDayColumn(day); if(!daycol) continue;
+          block=document.createElement('div');
+          block.className='rule';
+          block.dataset.uid=uid;
+          if (realId!=null) block.dataset.realId = String(realId);
+          daycol.appendChild(block);
+          block.addEventListener('click',(ev)=>{
+            ev.preventDefault(); ev.stopPropagation();
+            requestAnimationFrame(()=> this._openDialogFresh(r, block));
+          });
+        } else {
+          if (realId!=null) block.dataset.realId = String(realId);
+        }
+
+        this._decorateBlock(block,sv);
+      }
     }
 
     // Rimuovi orfani (non-temp) ma NON quelli marcati pending-id attivo o realId in pending
@@ -566,6 +671,15 @@ async _setAllEnabled(enabled){
       if(uid && !seenUids.has(uid) && !isPending){
         block.remove();
       }
+    });
+  }
+
+  // Wrapper multi-slot: un rule "temp" ottimistico va renderizzato una volta
+  // per fascia (payload.slots), non una sola volta per l'intera regola.
+  _renderTempBlocks(payload,opts={}){
+    const slotsArr=(Array.isArray(payload.slots)&&payload.slots.length) ? payload.slots : [payload];
+    slotsArr.forEach(slot=>{
+      this._renderTempBlock(this._flattenSlot(payload,slot), opts);
     });
   }
 
@@ -624,9 +738,9 @@ async _setAllEnabled(enabled){
     const content=document.createElement('div'); content.classList.add('apw-root'); content.style.minWidth='360px'; content.style.maxWidth='92vw';
     const dialogTitleText= existing ? 'Modifica regola' : (prefill ? 'Nuova regola (duplica)' : 'Nuova regola');
 
-    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:0 0 8px}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}</style>
+    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:0 0 8px}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}</style>
       <div class="dialog-header">
-        <ha-icon-button id="btn_close" aria-label="Chiudi" icon="mdi:close"></ha-icon-button>
+        <button type="button" class="icon-btn" id="btn_close" aria-label="Chiudi">✕</button>
         <div class="dialog-title" id="dlg_title">${dialogTitleText}</div>
         <mwc-button id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">Duplica</mwc-button>
         <mwc-button id="btn_delete_text" class="danger" style="${existing?'':'visibility:hidden'}">Elimina</mwc-button>
@@ -659,24 +773,17 @@ async _setAllEnabled(enabled){
 
         <div class="form-row" id="row_entity"><label for="f_entity">Entità</label></div>
 
-        <div class="section"><div class="section-title">Start</div>
-          <div class="two">
-            <div class="form-row"><label for="f_day">Giorno</label>
-              <select id="f_day"><option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option></select>
-            </div>
-            <div class="form-row"><label for="f_start">Ora</label><input id="f_start" type="time" step="60" value="08:00" /></div>
-          </div>
+        <div class="section"><div class="section-title">Fasce orarie</div>
+          <div id="slots_wrap"></div>
+          <div class="form-row" style="text-align:right"><mwc-button id="btn_add_slot" type="button">+ Aggiungi fascia</mwc-button></div>
+        </div>
+
+        <div class="section"><div class="section-title">Action (inizio)</div>
           <div class="form-row"><label for="f_service_sel">Action</label><select id="f_service_sel"></select></div>
           <div id="svc_fields"></div>
         </div>
 
-        <div class="section"><div class="section-title">End (opzionale)</div>
-          <div class="two">
-            <div class="form-row"><label for="f_day_end">Giorno</label>
-              <select id="f_day_end"><option value="">(uguale allo start)</option><option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option></select>
-            </div>
-            <div class="form-row"><label for="f_end">Ora</label><input id="f_end" type="time" step="60" placeholder="09:00" /></div>
-          </div>
+        <div class="section"><div class="section-title">Action (fine, opzionale)</div>
           <div class="form-row"><label for="f_service_sel_end">Action</label><select id="f_service_sel_end"></select></div>
           <div id="svc_fields_end"></div>
         </div>
@@ -686,11 +793,86 @@ async _setAllEnabled(enabled){
     dlg.appendChild(content); document.body.appendChild(dlg);
 
     const $=(sel)=>content.querySelector(sel);
-    const f_id=$('#f_id'), f_title=$('#f_title'), f_day=$('#f_day'), f_start=$('#f_start'), f_day_end=$('#f_day_end'), f_end=$('#f_end');
+    const f_id=$('#f_id'), f_title=$('#f_title');
     const f_color=$('#f_color'); const row_entity=$('#row_entity'); const f_service_sel=$('#f_service_sel'); const svc_fields=$('#svc_fields'); const f_service_sel_end=$('#f_service_sel_end'); const svc_fields_end=$('#svc_fields_end'); const icon_wrap=$('#icon_wrap');
     const f_tags=$('#f_tags');
+    const slots_wrap=$('#slots_wrap');
 
-    const stepSec=this._getSlotMinutes()*60; try{ if(f_start) f_start.step=String(stepSec); if(f_end) f_end.step=String(stepSec);}catch(_){ }
+    // Chiudi/Annulla collegati SUBITO, prima di qualunque setup rischioso
+    // (picker HA creati a mano, render dei campi servizio, ecc.). Se
+    // qualcosa più avanti lancia un'eccezione, l'utente deve poter comunque
+    // chiudere il dialog invece di restarci bloccato dentro senza via
+    // d'uscita — prima questi due erano collegati in fondo alla funzione,
+    // insieme a Salva, quindi un errore ovunque nel mezzo li disattivava
+    // tutti e tre in blocco.
+    const doClose=()=>{
+      try{ dlg.close(); }catch(_){ }
+      // Non fidarsi che l'evento 'closed' scatti sempre (dipende dal
+      // funzionamento interno di ha-dialog): puliamo comunque a mano.
+      try{ dlg.remove(); }catch(_){ }
+      if(this._activeDialog===dlg) this._activeDialog=null;
+    };
+    const btn_close_early=$('#btn_close'); const btn_cancel_early=$('#btn_cancel');
+    if(btn_close_early) btn_close_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
+    if(btn_cancel_early) btn_cancel_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
+
+    const stepSec=this._getSlotMinutes()*60;
+    const DAY_OPTIONS='<option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option>';
+
+    // --- Fasce orarie (multi-slot): una regola può avere più righe
+    // (day/start/end?/end_day?) che condividono la stessa azione. ---
+    const updateRemoveButtonsVisibility=()=>{
+      const rows=slots_wrap.querySelectorAll('.slot-row');
+      rows.forEach(r=>{ const btn=r.querySelector('.btn_remove_slot'); if(btn) btn.style.visibility = rows.length>1 ? 'visible' : 'hidden'; });
+    };
+    const makeSlotRow=(prefillSlot)=>{
+      const row=document.createElement('div'); row.className='slot-row';
+      row.innerHTML=`
+        <div class="slot-row-head">
+          <span class="slot-row-title">Fascia</span>
+          <button type="button" class="icon-btn small btn_remove_slot" aria-label="Rimuovi fascia">🗑</button>
+        </div>
+        <div class="two">
+          <div class="form-row"><label>Giorno</label><select class="f_slot_day">${DAY_OPTIONS}</select></div>
+          <div class="form-row"><label>Ora inizio</label><input class="f_slot_start" type="time" step="${stepSec}" value="08:00" /></div>
+        </div>
+        <div class="two">
+          <div class="form-row"><label>Ora fine (opz.)</label><input class="f_slot_end" type="time" step="${stepSec}" placeholder="09:00" /></div>
+          <div class="form-row"><label>Giorno fine</label><select class="f_slot_end_day"><option value="">(uguale a inizio)</option>${DAY_OPTIONS}</select></div>
+        </div>`;
+      slots_wrap.appendChild(row);
+      const dayEl=row.querySelector('.f_slot_day'), startEl=row.querySelector('.f_slot_start'), endEl=row.querySelector('.f_slot_end'), endDayEl=row.querySelector('.f_slot_end_day');
+      if(prefillSlot){
+        if(prefillSlot.day!=null) dayEl.value=String(prefillSlot.day);
+        if(prefillSlot.start) startEl.value=String(prefillSlot.start).slice(0,5);
+        if(prefillSlot.end) endEl.value=String(prefillSlot.end).slice(0,5);
+        if(prefillSlot.end_day!=null&&prefillSlot.end_day!=='') endDayEl.value=String(prefillSlot.end_day);
+      }
+      row.querySelector('.btn_remove_slot').addEventListener('click',(ev)=>{
+        ev.preventDefault(); ev.stopPropagation();
+        if(slots_wrap.querySelectorAll('.slot-row').length<=1) return; // sempre almeno 1 fascia
+        row.remove();
+        updateRemoveButtonsVisibility();
+      });
+      return row;
+    };
+    const collectSlots=()=>{
+      const slots=[];
+      slots_wrap.querySelectorAll('.slot-row').forEach(row=>{
+        const day=Number(row.querySelector('.f_slot_day').value);
+        const start=(row.querySelector('.f_slot_start').value||'').slice(0,5);
+        if(Number.isNaN(day)||!start) return;
+        const slot={ day, start };
+        const end=(row.querySelector('.f_slot_end').value||'').trim().slice(0,5);
+        const endDayRaw=(row.querySelector('.f_slot_end_day').value||'').trim();
+        if(end) slot.end=end;
+        if(endDayRaw!==''&&!Number.isNaN(Number(endDayRaw))) slot.end_day=Number(endDayRaw);
+        slots.push(slot);
+      });
+      return slots;
+    };
+    const btn_add_slot=$('#btn_add_slot');
+    if(btn_add_slot) btn_add_slot.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); makeSlotRow(null); updateRemoveButtonsVisibility(); });
 
     // Enabled switch
     let enabledSwitch=null;
@@ -706,36 +888,46 @@ async _setAllEnabled(enabled){
     }
 
     let f_icon=null, icon_picker=null;
-    if(customElements.get('ha-icon-picker')){
-      icon_picker=document.createElement('ha-icon-picker');
-      icon_picker.hass=this._hass; icon_picker.label='Seleziona icona (mdi)'; icon_picker.value='';
-      try{ icon_picker.setAttribute('outlined',''); }catch(_){ }
-      icon_picker.style.cssText='display:block;width:100%;box-sizing:border-box;border:1px solid var(--divider-color);border-radius:8px;min-height:40px;padding:6px 8px;background:var(--card-background-color);color:var(--primary-text-color)';
-      icon_wrap.appendChild(icon_picker);
-      icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
-    } else {
+    const _buildPlainIconInput=()=>{
+      icon_picker=null;
       f_icon=document.createElement('input'); f_icon.id='f_icon'; f_icon.placeholder='mdi:lightbulb'; f_icon.style.cssText='width:100%;box-sizing:border-box;min-height:40px'; icon_wrap.appendChild(f_icon);
+    };
+    if(customElements.get('ha-icon-picker')){
+      // Come ha-entity-picker, anche questo componente HA creato a mano può
+      // fallire silenziosamente in contesti come Bubble Card: non lasciamo
+      // che un errore qui (sincrono o nella creazione) blocchi il resto del
+      // dialog, compresi i pulsanti collegati più avanti.
+      try{
+        icon_picker=document.createElement('ha-icon-picker');
+        icon_picker.hass=this._hass; icon_picker.label='Seleziona icona (mdi)'; icon_picker.value='';
+        try{ icon_picker.setAttribute('outlined',''); }catch(_){ }
+        icon_picker.style.cssText='display:block;width:100%;box-sizing:border-box;border:1px solid var(--divider-color);border-radius:8px;min-height:40px;padding:6px 8px;background:var(--card-background-color);color:var(--primary-text-color)';
+        icon_wrap.appendChild(icon_picker);
+        icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
+      }catch(err){
+        console.error('ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',err);
+        _buildPlainIconInput();
+      }
+    } else {
+      _buildPlainIconInput();
     }
     const getIconValue=()=> (icon_picker? this._sanitizeIcon(icon_picker.value): this._sanitizeIcon(f_icon?.value||''));
     const setIconValue=(val)=>{ const v=this._sanitizeIcon(val); if(icon_picker) icon_picker.value=v; else if(f_icon) f_icon.value=v; };
 
-    // Entity picker
+    // Entity picker: sempre il campo di testo semplice + suggerimenti.
+    // ha-entity-picker è stato provato in precedenza, ma nei contesti dove
+    // un wrapper come Bubble Card passa alle card che incapsula un oggetto
+    // hass ridotto, il suo rendering interno fallisce (crash asincrono su
+    // hass.localize, non intercettabile in modo pulito da qui) lasciando
+    // uno shadow root vuoto. Piuttosto che rincorrere ogni suo modo di
+    // fallire silenziosamente, usiamo direttamente l'unica versione che si
+    // è dimostrata affidabile ovunque: non dipende da nient'altro oltre a
+    // hass.states, che la card usa già per tutto il resto.
     let f_entity;
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
-    if(customElements.get('ha-entity-picker')){
-      const ep=document.createElement('ha-entity-picker');
-      ep.id='f_entity'; ep.hass=this._hass;
-      ep.setAttribute('allow-custom-entity',''); ep.setAttribute('required',''); ep.setAttribute('show-entity-id',''); ep.placeholder='Cerca entità…';
-      if(includeDomains) ep.includeDomains=includeDomains; if(excludeDomains) ep.excludeDomains=excludeDomains;
-      try{ ep.setAttribute('outlined',''); }catch(_){ }
-      row_entity.appendChild(ep); f_entity=ep;
-      const openIfPossible=()=>{ try{ if(typeof ep.open==='function') ep.open(); }catch(_){ } };
-      ['focus','click','value-changed','input'].forEach(evt=> ep.addEventListener(evt, openIfPossible));
-      let lastTimer=null; const pingRefresh=()=>{ if(lastTimer) clearTimeout(lastTimer); lastTimer=setTimeout(()=>openIfPossible(),60); };
-      ['value-changed','input'].forEach(evt=> ep.addEventListener(evt, pingRefresh));
-    } else {
+    {
       const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder='es. light.soggiorno'; inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
       const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
       const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
@@ -758,24 +950,6 @@ if (existing) {
 
     f_title.value = (existing.title || existing.service || 'Action').trim();
 
-    const dayVal =
-      typeof existing.day === 'number'
-        ? existing.day
-        : typeof existing.weekday === 'number'
-        ? existing.weekday
-        : undefined;
-
-    if (dayVal != null) f_day.value = String(dayVal);
-
-    if (existing.start || existing.time)
-      f_start.value = String(existing.start || existing.time).slice(0, 5);
-
-    if (typeof existing.end_day === 'number')
-      f_day_end.value = String(existing.end_day);
-
-    if (existing.end)
-      f_end.value = String(existing.end).slice(0, 5);
-
     // enabled
     enabledSwitch.checked = existing.enabled !== false;
 
@@ -794,14 +968,33 @@ if (prefill && !existing) {
     if(!existing && prefill){
       try{
         if(prefill.title) f_title.value = String(prefill.title);
-        if(typeof prefill.day==='number') f_day.value = String(prefill.day);
-        if(prefill.start) f_start.value = String(prefill.start).slice(0,5);
-        if(prefill.end) f_end.value = String(prefill.end).slice(0,5);
-        if(typeof prefill.end_day==='number') f_day_end.value = String(prefill.end_day);
         enabledSwitch.checked = (prefill.enabled !== false);
         f_tags.value = _tagsToText(prefill.tags);
       }catch(_){ }
     }
+
+    // Fasce orarie: da existing.slots / prefill.slots se presenti, altrimenti
+    // una singola fascia ricostruita dai campi flat legacy (day/start/end/
+    // end_day), altrimenti una riga vuota di default.
+    try{
+      const slotsSource = (existing?.slots?.length) ? existing.slots
+        : (prefill?.slots?.length ? prefill.slots : null);
+      let initialSlots;
+      if(slotsSource){
+        initialSlots = slotsSource;
+      } else {
+        const src = existing || prefill;
+        const day = typeof src?.day==='number' ? src.day : (typeof src?.weekday==='number' ? src.weekday : 0);
+        const start = String(src?.start || src?.time || '08:00').slice(0,5);
+        const one = { day, start };
+        if(src?.end) one.end = String(src.end).slice(0,5);
+        if(typeof src?.end_day==='number') one.end_day = src.end_day;
+        initialSlots = [one];
+      }
+      initialSlots.forEach(s=> makeSlotRow(s));
+    }catch(_){ }
+    if(!slots_wrap.querySelector('.slot-row')) makeSlotRow(null);
+    updateRemoveButtonsVisibility();
 
     const preSelStart=(existing?.service)??(prefill?.service)??'';
     const preSelEnd=(existing?.end_service)??(prefill?.end_service)??'';
@@ -917,12 +1110,11 @@ if (prefill && !existing) {
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
     };
 
-    refreshServiceSelects();
+    try{ refreshServiceSelects(); }catch(err){ console.error('ChronoTask: errore inizializzazione action selector:',err); }
     const f_entityEl=row_entity.querySelector('#f_entity'); if(f_entityEl){ const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focus'].forEach(evt=> f_entityEl.addEventListener(evt,onEntityChange)); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
 
-    const doClose=()=>{ try{ dlg.close(); }catch(_){ } };
     const getPlannerId=()=> this._getPlannerId();
 
 // Duplica
@@ -948,12 +1140,12 @@ if (btn_duplicate) {
     );
 
     const iconVal = this._sanitizeIcon(getIconValue());
+    const dupSlots = collectSlots();
 
     // --- PATCH: dupPrefill senza ID/UID ---
     const dupPrefill = {
       title: (f_title.value || 'Action').trim(),
-      day: Number(f_day.value),
-      start: (f_start.value || '08:00').slice(0, 5),
+      slots: dupSlots.length ? dupSlots : [{ day: 0, start: '08:00' }],
       service: startService,
       service_data: startData,
       color: colorHex,
@@ -962,13 +1154,6 @@ if (btn_duplicate) {
       tags: _tagsToArray(f_tags.value),
       ...(iconVal ? { icon: iconVal } : {})
     };
-
-    const endTime = (f_end.value || '').trim().slice(0, 5);
-    const endDayRaw = (f_day_end.value || '').trim();
-
-    if (endTime) dupPrefill.end = endTime;
-    if (endDayRaw !== '' && !Number.isNaN(Number(endDayRaw)))
-      dupPrefill.end_day = Number(endDayRaw);
 
     if (endService) {
       dupPrefill.end_service = endService;
@@ -993,12 +1178,14 @@ if (btn_duplicate) {
       const serviceStart=(f_service_sel.value||'').trim();
       if(!serviceStart){ console.warn('Seleziona un servizio di inizio.'); return; }
 
+      const slots=collectSlots();
+      if(!slots.length){ console.warn('Aggiungi almeno una fascia oraria valida (giorno + ora inizio).'); return; }
+
       let picked=(f_color&&f_color.value)?String(f_color.value).toLowerCase():'';
       const initial=(f_color?.dataset?.initialHex||'').toLowerCase();
       if(!picked) picked=initial||this._config.default_color;
       const colorHex=_toHexFromAny(picked,this._config.default_color);
 
-      const startVal=(f_start.value||'08:00').slice(0,5);
       const svcStartData=_collectServiceData(svc_fields);
       if(eid) svcStartData.entity_id=eid;
       if(serviceStart==='light.turn_on'){
@@ -1008,8 +1195,7 @@ if (btn_duplicate) {
       const iconVal=this._sanitizeIcon(getIconValue());
       const payload={
         title:(f_title.value||(existing?.title||existing?.service)||'Action').trim(),
-        day:Number(f_day.value),
-        start:startVal,
+        slots,
         service:serviceStart,
         service_data:svcStartData,
         color:colorHex, ui_color:colorHex,
@@ -1017,11 +1203,7 @@ if (btn_duplicate) {
         tags: _tagsToArray(f_tags.value),
         ...(iconVal?{icon:iconVal}:{}),
       };
-      const endTime=(f_end.value||'').trim().slice(0,5);
       const endService=(f_service_sel_end.value||'').trim();
-      const endDayRaw=(f_day_end.value||'').trim();
-      if(endTime) payload.end=endTime;
-      if(endDayRaw!=='' && !Number.isNaN(Number(endDayRaw))) payload.end_day=Number(endDayRaw);
       if(endService){
         const endData=_collectServiceData(svc_fields_end); if(eid) endData.entity_id=eid;
         if(endService==='light.turn_on'){
@@ -1043,26 +1225,35 @@ if (btn_duplicate) {
           const updatePayload={ ...(svcBase), ...(idInfo?{id:idInfo,rule_id:idInfo,uid:idInfo}:{}) };
 
           if(idInfo){
-            // UPDATE ottimistico: aggiorna/subentra subito il blocco reale con i nuovi dati
-            let block=this._findRuleBlockByUid(idInfo);
-            if(!block){
-              const col=this._ensureDayColumn(payload.day);
-              if(col){
-                block=document.createElement('div');
-                block.className='rule';
-                block.dataset.uid=String(idInfo);
-                block.dataset.realId=String(idInfo);
-                col.appendChild(block);
-                block.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); requestAnimationFrame(()=> this._openDialogFresh({ ...payload, id:idInfo, uid:idInfo }, block)); });
+            // UPDATE ottimistico multi-slot: il numero di blocchi reali può
+            // cambiare (es. da 3 fasce a 1), quindi si riusano posizionalmente
+            // i blocchi esistenti per le prime N fasce, se ne creano di nuovi
+            // per quelle in più e si rimuovono quelli in eccesso.
+            const oldBlocks=Array.from(this._els.overlay.querySelectorAll(
+              `.rule[data-real-id="${_cssEscape(String(idInfo))}"]`
+            ));
+            slots.forEach((slot,i)=>{
+              const sv=this._flattenSlot(payload,slot);
+              let block=oldBlocks[i];
+              if(!block){
+                const col=this._ensureDayColumn(sv.day);
+                if(col){
+                  block=document.createElement('div');
+                  block.className='rule';
+                  col.appendChild(block);
+                  block.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); requestAnimationFrame(()=> this._openDialogFresh({ ...payload, id:idInfo, uid:idInfo }, block)); });
+                }
               }
-            } else {
-              block.dataset.realId=String(idInfo);
-            }
-            if(block){
-              block.dataset.pendingId=String(idInfo);
-              block.classList.add('pending');
-              this._decorateBlock(block, { ...payload, id:idInfo, uid:idInfo });
-            }
+              if(block){
+                block.dataset.uid=this._uidForSlot(idInfo,i);
+                block.dataset.realId=String(idInfo);
+                block.dataset.pendingId=String(idInfo);
+                block.classList.add('pending');
+                this._decorateBlock(block, { ...sv, id:idInfo, uid:idInfo });
+              }
+            });
+            for(let i=slots.length;i<oldBlocks.length;i++){ oldBlocks[i]?.remove(); }
+
             this._pendingEdits.set(String(idInfo), {
               payload:{...payload, id:idInfo, uid:idInfo},
               kind:'update',
@@ -1073,13 +1264,13 @@ if (btn_duplicate) {
             setTimeout(()=> this._scheduleUpdate(), 200);
           } else {
             await this._hass.callService('chronotask','add_rule', svcBase);
-            this._renderTempBlock(payload);
+            this._renderTempBlocks(payload);
             setTimeout(()=> this._scheduleUpdate(), 200);
           }
         }
         else if(hasAdd){
           await this._hass.callService('chronotask','add_rule', svcBase);
-          this._renderTempBlock(payload);
+          this._renderTempBlocks(payload);
           setTimeout(()=> this._scheduleUpdate(), 200);
         } else {
           console.error('ChronoTask: nessun servizio disponibile per salvare la regola.');
@@ -1103,7 +1294,8 @@ if (btn_duplicate) {
       const payload= pid ? { planner_id:pid, id:idInfo, rule_id:idInfo, uid:idInfo } : { id:idInfo, rule_id:idInfo, uid:idInfo };
 
       try{
-        const oldBlock=this._findRuleBlockByUid(idInfo); if(oldBlock) oldBlock.remove();
+        // Una regola può avere più blocchi (uno per fascia): rimuovili tutti.
+        this._els.overlay.querySelectorAll(`.rule[data-real-id="${_cssEscape(String(idInfo))}"]`).forEach(el=>el.remove());
         this._els.overlay.querySelectorAll(`.rule.temp[data-pending-id="${_cssEscape(String(idInfo))}"]`).forEach(el=>el.remove());
         this._pendingEdits.delete(String(idInfo));
         await this._hass.callService('chronotask','remove_rule', payload);
@@ -1118,10 +1310,11 @@ if (btn_duplicate) {
     };
     if(btn_delete) btn_delete.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doDelete(); });
 
-    const btn_save=content.querySelector('#btn_save'); const btn_cancel=content.querySelector('#btn_cancel'); const btn_close=content.querySelector('#btn_close');
+    // Chiudi/Annulla sono già collegati in cima alla funzione (vedi
+    // doClose/btn_close_early/btn_cancel_early): qui resta solo Salva, la
+    // cui logica dipende da tutto il setup del form fatto nel frattempo.
+    const btn_save=content.querySelector('#btn_save');
     if(btn_save) btn_save.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doSave(); });
-    if(btn_cancel) btn_cancel.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
-    if(btn_close) btn_close.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
 
     content.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); doSave(); } });
 
@@ -1136,9 +1329,11 @@ if (btn_duplicate) {
     if(existing?.icon) setIconValue(existing.icon);
     else if(prefill?.icon) setIconValue(prefill.icon);
 
-    const eid=getEntityId();
-    _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
-    _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
+    try{
+      const eid=getEntityId();
+      _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
+      _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
+    }catch(err){ console.error('ChronoTask: errore render campi action:',err); }
   }
 }
 

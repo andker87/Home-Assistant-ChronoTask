@@ -90,6 +90,7 @@ ChronoTask provides:
 
 - 📅 **Weekly planner** with configurable time slots
 - 🧩 **Recurring rules** with optional start / end
+- 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
 - 🎨 **Colors and icons** for quick visual recognition
 - 🏷 **Tags** to organize and manage groups of rules
 - ✅ **Single or bulk enable / disable**
@@ -216,7 +217,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### Coming soon
 
-- 🗓 Multi-slot scheduling (v1.2.0) — a single rule can cover multiple days and times; existing rules migrate automatically
 - 🔲 Lane layout in the weekly planner (v1.3.0) — overlapping rules shown side by side instead of stacking
 
 ### On the roadmap

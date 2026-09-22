@@ -179,8 +179,13 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       this._showWarn('Servizi ChronoTask non disponibili. Riavvia Home Assistant e ricarica la pagina.');
       return;
     }
-    const pid=this._plannerId();
     const tag=this._config.tag;
+    if(!enable){
+      const activeCount = this._rules().filter(r => _tagsToArray(r.tags).includes(tag) && r?.enabled !== false).length;
+      if(!activeCount) return;
+      if(!confirm(`Disabilitare le ${activeCount} regole con tag #${tag}?`)) return;
+    }
+    const pid=this._plannerId();
     const service = enable ? 'enable_tag' : 'disable_tag';
     const payload = pid ? { planner_id: pid, tag } : { tag };
     try{
@@ -299,7 +304,10 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       name.textContent = (r.title || r.service || 'Action');
       const meta=document.createElement('div');
       meta.className='meta';
-      meta.textContent = `${_fmtDay(r.day)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''} • ${r.service||''}`;
+      const extraSlots = Array.isArray(r.slots) ? r.slots.length - 1 : 0;
+      const timeSummary = `${_fmtDay(r.day)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''}`
+        + (extraSlots > 0 ? ` +${extraSlots}` : '');
+      meta.textContent = `${timeSummary} • ${r.service||''}`;
 
       const tagsWrap=document.createElement('div');
       tagsWrap.className='tags';

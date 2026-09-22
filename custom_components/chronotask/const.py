@@ -39,6 +39,13 @@ CONF_END_DAY = "end_day"      # optional weekday for end action, 0..6
 CONF_END_SERVICE = "end_service"
 CONF_END_SERVICE_DATA = "end_service_data"
 
+# Multi-slot: una regola può coprire più (day, start, end?, end_day?) con
+# un'unica azione condivisa. slots è list[{day, start, end?, end_day?}];
+# i campi day/start/end/end_day a livello di regola restano sempre uno
+# specchio di slots[0] per compatibilità con chi li legge direttamente
+# (vedi custom_components/chronotask/slots.py).
+CONF_SLOTS = "slots"
+
 # Tags
 CONF_TAGS = "tags"            # list[str]
 
