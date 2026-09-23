@@ -17,10 +17,117 @@ function _tagsToArray(raw){
   return s.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
 }
 
-function _fmtDay(d){
-  const days=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+// ---------------------------------------------------------------------------
+// i18n: stesso meccanismo di chronotask-weekly-card.js (dizionario duplicato
+// qui apposta: i due file sono indipendenti, nessun modulo condiviso, per non
+// aggiungere una terza risorsa Lovelace da registrare).
+// ---------------------------------------------------------------------------
+const CT_STRINGS={
+  it:{
+    defaultTitle:'ChronoTask — Tag Manager',
+    enable:'Abilita', disable:'Disabilita',
+    confirmDisableTag:(n,tag)=>`Disabilitare le ${n} regole con tag #${tag}?`,
+    servicesUnavailable:'Servizi ChronoTask non disponibili. Riavvia Home Assistant e ricarica la pagina.',
+    bulkError:'Errore durante il bulk del tag (vedi console).',
+    toggleError:"Errore durante l'aggiornamento della regola (vedi console).",
+    configureRulesEntity:'(configura rules_entity)',
+    entityNotFound:'Entità rules_entity non trovata.',
+    noRulesForTag:'Nessuna regola con questo tag.',
+    customSuffix:' (personalizzato)',
+    upgradeForEditor:"Aggiorna Home Assistant per usare l'editor avanzato.",
+    title:'Titolo', rulesEntityPlanner:'Entità regole (planner)', tag:'Tag',
+  },
+  en:{
+    defaultTitle:'ChronoTask — Tag Manager',
+    enable:'Enable', disable:'Disable',
+    confirmDisableTag:(n,tag)=>`Disable the ${n} rules tagged #${tag}?`,
+    servicesUnavailable:'ChronoTask services not available. Restart Home Assistant and reload the page.',
+    bulkError:'Error during tag bulk action (see console).',
+    toggleError:'Error updating the rule (see console).',
+    configureRulesEntity:'(configure rules_entity)',
+    entityNotFound:'rules_entity entity not found.',
+    noRulesForTag:'No rules with this tag.',
+    customSuffix:' (custom)',
+    upgradeForEditor:'Update Home Assistant to use the advanced editor.',
+    title:'Title', rulesEntityPlanner:'Rules entity (planner)', tag:'Tag',
+  },
+  fr:{
+    defaultTitle:'ChronoTask — Gestionnaire de tags',
+    enable:'Activer', disable:'Désactiver',
+    confirmDisableTag:(n,tag)=>`Désactiver les ${n} règles avec le tag #${tag} ?`,
+    servicesUnavailable:'Services ChronoTask non disponibles. Redémarrez Home Assistant et rechargez la page.',
+    bulkError:"Erreur lors de l'action groupée sur le tag (voir la console).",
+    toggleError:'Erreur lors de la mise à jour de la règle (voir la console).',
+    configureRulesEntity:'(configurer rules_entity)',
+    entityNotFound:'Entité rules_entity introuvable.',
+    noRulesForTag:'Aucune règle avec ce tag.',
+    customSuffix:' (personnalisé)',
+    upgradeForEditor:"Mettez à jour Home Assistant pour utiliser l'éditeur avancé.",
+    title:'Titre', rulesEntityPlanner:'Entité de règles (planificateur)', tag:'Tag',
+  },
+  de:{
+    defaultTitle:'ChronoTask — Tag-Manager',
+    enable:'Aktivieren', disable:'Deaktivieren',
+    confirmDisableTag:(n,tag)=>`Die ${n} Regeln mit Tag #${tag} deaktivieren?`,
+    servicesUnavailable:'ChronoTask-Dienste nicht verfügbar. Home Assistant neu starten und Seite neu laden.',
+    bulkError:'Fehler bei der Tag-Sammelaktion (siehe Konsole).',
+    toggleError:'Fehler beim Aktualisieren der Regel (siehe Konsole).',
+    configureRulesEntity:'(rules_entity konfigurieren)',
+    entityNotFound:'rules_entity-Entität nicht gefunden.',
+    noRulesForTag:'Keine Regeln mit diesem Tag.',
+    customSuffix:' (benutzerdefiniert)',
+    upgradeForEditor:'Home Assistant aktualisieren, um den erweiterten Editor zu nutzen.',
+    title:'Titel', rulesEntityPlanner:'Regel-Entität (Planer)', tag:'Tag',
+  },
+  es:{
+    defaultTitle:'ChronoTask — Gestor de etiquetas',
+    enable:'Activar', disable:'Desactivar',
+    confirmDisableTag:(n,tag)=>`¿Desactivar las ${n} reglas con la etiqueta #${tag}?`,
+    servicesUnavailable:'Servicios de ChronoTask no disponibles. Reinicia Home Assistant y recarga la página.',
+    bulkError:'Error durante la acción masiva de etiqueta (ver consola).',
+    toggleError:'Error al actualizar la regla (ver consola).',
+    configureRulesEntity:'(configura rules_entity)',
+    entityNotFound:'No se encontró la entidad rules_entity.',
+    noRulesForTag:'No hay reglas con esta etiqueta.',
+    customSuffix:' (personalizado)',
+    upgradeForEditor:'Actualiza Home Assistant para usar el editor avanzado.',
+    title:'Título', rulesEntityPlanner:'Entidad de reglas (planificador)', tag:'Etiqueta',
+  },
+  zh:{
+    defaultTitle:'ChronoTask — 标签管理器',
+    enable:'启用', disable:'禁用',
+    confirmDisableTag:(n,tag)=>`确定要禁用带有标签 #${tag} 的 ${n} 条规则吗？`,
+    servicesUnavailable:'ChronoTask 服务不可用。请重启 Home Assistant 并刷新页面。',
+    bulkError:'批量标签操作出错（请查看控制台）。',
+    toggleError:'更新规则时出错（请查看控制台）。',
+    configureRulesEntity:'（配置 rules_entity）',
+    entityNotFound:'未找到 rules_entity 实体。',
+    noRulesForTag:'没有带此标签的规则。',
+    customSuffix:'（自定义）',
+    upgradeForEditor:'请更新 Home Assistant 以使用高级编辑器。',
+    title:'标题', rulesEntityPlanner:'规则实体（计划器）', tag:'标签',
+  },
+};
+function _ctLang(hass){
+  const raw=String(hass?.locale?.language||hass?.language||'en').toLowerCase();
+  const short=raw.split('-')[0];
+  return CT_STRINGS[short]?short:'en';
+}
+function _ctT(hass,key,...args){
+  const dict=CT_STRINGS[_ctLang(hass)];
+  const v=dict[key];
+  return typeof v==='function' ? v(...args) : (v??CT_STRINGS.en[key]??key);
+}
+function _weekdayNamesShort(lang){
+  const base=new Date(Date.UTC(2020,10,2));
+  const fmt=new Intl.DateTimeFormat(lang||'en',{weekday:'short'});
+  return Array.from({length:7},(_,i)=>{ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); return fmt.format(d); });
+}
+function _fmtDay(d,hass){
   const n=Number(d);
-  return (n>=0 && n<=6) ? days[n] : '';
+  if(n<0||n>6) return '';
+  const s=_weekdayNamesShort(_ctLang(hass))[n]||'';
+  return s ? s.charAt(0).toUpperCase()+s.slice(1) : '';
 }
 
 function _uniqSorted(arr){
@@ -43,7 +150,7 @@ class ChronoTaskTagManagerCard extends HTMLElement {
         }
       }
     }catch(_){}
-    return { title:'ChronoTask — Tag Manager', ...(rules_entity?{rules_entity}:{}) , ...(tag?{tag}:{}) };
+    return { title:_ctT(hass,'defaultTitle'), ...(rules_entity?{rules_entity}:{}) , ...(tag?{tag}:{}) };
   }
 
   constructor(){
@@ -69,6 +176,8 @@ class ChronoTaskTagManagerCard extends HTMLElement {
   }
 
   getCardSize(){ return 3; }
+
+  _t(key,...args){ return _ctT(this._hass,key,...args); }
 
   _scheduleUpdate(){
     if(this._updateScheduled) return;
@@ -116,8 +225,8 @@ class ChronoTaskTagManagerCard extends HTMLElement {
               <span class="chip" id="chip"></span>
             </div>
             <div class="actions">
-              <button class="chip-btn chip-enable" id="btn_enable" type="button">Abilita</button>
-              <button class="chip-btn chip-disable" id="btn_disable" type="button">Disabilita</button>
+              <button class="chip-btn chip-enable" id="btn_enable" type="button"></button>
+              <button class="chip-btn chip-disable" id="btn_disable" type="button"></button>
             </div>
           </div>
           <div class="warn" id="warn" style="display:none"></div>
@@ -138,7 +247,14 @@ class ChronoTaskTagManagerCard extends HTMLElement {
     this._els.btn_enable.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); this._bulk(true); });
     this._els.btn_disable.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); this._bulk(false); });
 
+    this._applyI18nStatic();
     this._scheduleUpdate();
+  }
+
+  _applyI18nStatic(){
+    if(!this._els) return;
+    if(this._els.btn_enable) this._els.btn_enable.textContent=this._t('enable');
+    if(this._els.btn_disable) this._els.btn_disable.textContent=this._t('disable');
   }
 
   _getState(){
@@ -176,14 +292,14 @@ class ChronoTaskTagManagerCard extends HTMLElement {
   async _bulk(enable){
     if(!this._hass) return;
     if(!this._servicesAvailable()){
-      this._showWarn('Servizi ChronoTask non disponibili. Riavvia Home Assistant e ricarica la pagina.');
+      this._showWarn(this._t('servicesUnavailable'));
       return;
     }
     const tag=this._config.tag;
     if(!enable){
       const activeCount = this._rules().filter(r => _tagsToArray(r.tags).includes(tag) && r?.enabled !== false).length;
       if(!activeCount) return;
-      if(!confirm(`Disabilitare le ${activeCount} regole con tag #${tag}?`)) return;
+      if(!confirm(this._t('confirmDisableTag',activeCount,tag))) return;
     }
     const pid=this._plannerId();
     const service = enable ? 'enable_tag' : 'disable_tag';
@@ -192,14 +308,14 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       await this._hass.callService('chronotask', service, payload);
     }catch(err){
       console.error('ChronoTask bulk tag error', err);
-      this._showWarn('Errore durante il bulk del tag (vedi console).');
+      this._showWarn(this._t('bulkError'));
     }
   }
 
   async _toggleRule(rule, enabled){
     if(!this._hass) return;
     if(!this._servicesAvailable()){
-      this._showWarn('Servizi ChronoTask non disponibili. Riavvia Home Assistant e ricarica la pagina.');
+      this._showWarn(this._t('servicesUnavailable'));
       return;
     }
     const pid=this._plannerId();
@@ -214,7 +330,7 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       await this._hass.callService('chronotask', 'update_rule', payload);
     }catch(err){
       console.error('ChronoTask toggle rule error', err);
-      this._showWarn('Errore durante l\'aggiornamento della regola (vedi console).');
+      this._showWarn(this._t('toggleError'));
       this._optimistic.delete(String(rid));
       this._scheduleUpdate();
     }
@@ -228,19 +344,20 @@ class ChronoTaskTagManagerCard extends HTMLElement {
 
   _update(){
     if(!this._els || !this._config) return;
+    this._applyI18nStatic();
 
     const st=this._getState();
     if(!st){
-      this._els.title.textContent = (this._config.title || 'ChronoTask — Tag Manager') + ' — (configura rules_entity)';
+      this._els.title.textContent = (this._config.title || this._t('defaultTitle')) + ' — ' + this._t('configureRulesEntity');
       this._els.chip.textContent = `#${this._config.tag}`;
       this._els.list.innerHTML = '';
-      const empty=document.createElement('div'); empty.className='empty'; empty.textContent='Entità rules_entity non trovata.';
+      const empty=document.createElement('div'); empty.className='empty'; empty.textContent=this._t('entityNotFound');
       this._els.list.appendChild(empty);
       return;
     }
 
     const tag=this._config.tag;
-    this._els.title.textContent = this._config.title || `Tag: ${tag}`;
+    this._els.title.textContent = this._config.title || `${this._t('tag')}: ${tag}`;
     this._els.chip.textContent = `#${tag}`;
 
     if(this._servicesAvailable()) this._showWarn('');
@@ -266,7 +383,7 @@ class ChronoTaskTagManagerCard extends HTMLElement {
     if(!rules.length){
       const empty=document.createElement('div');
       empty.className='empty';
-      empty.textContent='Nessuna regola con questo tag.';
+      empty.textContent=this._t('noRulesForTag');
       list.appendChild(empty);
       return;
     }
@@ -305,7 +422,7 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       const meta=document.createElement('div');
       meta.className='meta';
       const extraSlots = Array.isArray(r.slots) ? r.slots.length - 1 : 0;
-      const timeSummary = `${_fmtDay(r.day)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''}`
+      const timeSummary = `${_fmtDay(r.day,this._hass)} ${String(r.start||'').slice(0,5)}${r.end?(' → '+String(r.end).slice(0,5)):''}`
         + (extraSlots > 0 ? ` +${extraSlots}` : '');
       meta.textContent = `${timeSummary} • ${r.service||''}`;
 
@@ -355,6 +472,8 @@ class ChronoTaskTagManagerEditor extends HTMLElement {
     this._refreshTagSchema();
   }
 
+  _t(key,...args){ return _ctT(this._hass,key,...args); }
+
   _emitConfigChanged(debounced=true){
     const fire=()=> this.dispatchEvent(new CustomEvent('config-changed',{ detail:{ config:this._config } }));
     if(!debounced){
@@ -373,15 +492,15 @@ class ChronoTaskTagManagerEditor extends HTMLElement {
 
     if(!customElements.get('ha-form')){
       const d=document.createElement('div');
-      d.innerHTML='Aggiorna Home Assistant per usare l\'editor avanzato.';
+      d.innerHTML=this._t('upgradeForEditor');
       root.appendChild(d);
       return;
     }
 
     const wrap=document.createElement('div');
     this._baseSchema=[
-      { name:'title', selector:{ text:{} }, label:'Titolo', optional:true },
-      { name:'rules_entity', selector:{ entity:{ domain:'sensor', integration:'chronotask' } }, label:'Rules entity (planner)', optional:false },
+      { name:'title', selector:{ text:{} }, label:this._t('title'), optional:true },
+      { name:'rules_entity', selector:{ entity:{ domain:'sensor', integration:'chronotask' } }, label:this._t('rulesEntityPlanner'), optional:false },
     ];
 
     const form=document.createElement('ha-form');
@@ -428,12 +547,12 @@ class ChronoTaskTagManagerEditor extends HTMLElement {
     const curTag = String(curData.tag||'').trim().toLowerCase();
     let tagOptions = options;
     if(curTag && !tags.includes(curTag)){
-      tagOptions = [...options, {value:curTag, label: curTag + ' (custom)'}];
+      tagOptions = [...options, {value:curTag, label: curTag + this._t('customSuffix')}];
     }
     const tagSchema = {
       name:'tag',
       selector:{ select:{ mode:'dropdown', options: tagOptions } },
-      label:'Tag',
+      label:this._t('tag'),
       optional:false,
     };
     this._form.schema = [...this._baseSchema, tagSchema];
@@ -451,7 +570,7 @@ try{
     window.customCards.push({
       type:'chronotask-tag-manager',
       name:'ChronoTask Tag Manager',
-      description:'Gestione regole per tag (abilita/disabilita)',
+      description:'Manage rules by tag (enable/disable)',
       preview:true,
       documentationURL:'https://github.com/andker87/Home-Assistant-ChronoTask'
     });
