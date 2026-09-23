@@ -43,9 +43,9 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
             content = content.replace("__VERSION__", INTEGRATION_VERSION)
             dest_file = dst / file.name
             dest_file.write_text(content, encoding="utf-8")
-            _LOGGER.debug(
-                "ChronoTask: copiato %s → %s (versione %s)",
-                file, dest_file, INTEGRATION_VERSION,
+            _LOGGER.info(
+                "ChronoTask: file frontend aggiornato: %s (versione %s)",
+                dest_file.name, INTEGRATION_VERSION,
             )
         except Exception as e:  # noqa: BLE001
             _LOGGER.error("ChronoTask: errore copia %s: %s", file, e)
