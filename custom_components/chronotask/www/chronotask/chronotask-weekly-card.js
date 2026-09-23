@@ -65,6 +65,12 @@ const CT_STRINGS={
     fieldBrightness:'Luminosità (0–255)', fieldTransition:'Transizione (s)', fieldEffect:'Effetto', egColorloop:'es. colorloop',
     fieldTemperature:'Temperatura', fieldPosition:'Posizione (0–100)', fieldVolume:'Volume (0.0–1.0)',
     warnNoStartService:'Seleziona un servizio di inizio.', warnNoValidSlots:'Aggiungi almeno una fascia oraria valida (giorno + ora inizio).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',
+    errActionSelectorInit:'ChronoTask: errore inizializzazione action selector:',
+    errNoServiceToSave:'ChronoTask: nessun servizio disponibile per salvare la regola.',
+    warnNoIdToDelete:'Nessun id/uid trovato per la regola; impossibile eliminare.',
+    errDeleteFailed:'Delete fallito (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: errore render campi action:',
   },
   en:{
     defaultTitle:'Weekly schedule (recurring)',
@@ -97,6 +103,12 @@ const CT_STRINGS={
     fieldBrightness:'Brightness (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effect', egColorloop:'e.g. colorloop',
     fieldTemperature:'Temperature', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
     warnNoStartService:'Select a start service.', warnNoValidSlots:'Add at least one valid time slot (day + start time).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker not available, using the plain field:',
+    errActionSelectorInit:'ChronoTask: error initializing the action selector:',
+    errNoServiceToSave:'ChronoTask: no service available to save the rule.',
+    warnNoIdToDelete:'No id/uid found for this rule; cannot delete.',
+    errDeleteFailed:'Delete failed (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: error rendering action fields:',
   },
 };
 function _ctLang(hass){
@@ -1005,7 +1017,7 @@ async _setAllEnabled(enabled){
         icon_wrap.appendChild(icon_picker);
         icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
       }catch(err){
-        console.error('ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',err);
+        console.error(this._t('errIconPickerFallback'),err);
         _buildPlainIconInput();
       }
     } else {
@@ -1210,7 +1222,7 @@ if (prefill && !existing) {
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
     };
 
-    try{ refreshServiceSelects(); }catch(err){ console.error('ChronoTask: errore inizializzazione action selector:',err); }
+    try{ refreshServiceSelects(); }catch(err){ console.error(this._t('errActionSelectorInit'),err); }
     const f_entityEl=row_entity.querySelector('#f_entity'); if(f_entityEl){ const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focus'].forEach(evt=> f_entityEl.addEventListener(evt,onEntityChange)); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
@@ -1373,7 +1385,7 @@ if (btn_duplicate) {
           this._renderTempBlocks(payload);
           setTimeout(()=> this._scheduleUpdate(), 200);
         } else {
-          console.error('ChronoTask: nessun servizio disponibile per salvare la regola.');
+          console.error(this._t('errNoServiceToSave'));
         }
       }catch(err){ console.error('ChronoTask save error:', err); }
 
@@ -1388,7 +1400,7 @@ if (btn_duplicate) {
       const pid=getPlannerId();
       const idInfo=existing?.id??existing?.uid??(f_id.value||null);
       if(!idInfo){
-        console.warn('Nessun id/uid trovato per la regola; impossibile eliminare.');
+        console.warn(this._t('warnNoIdToDelete'));
         btn_delete.disabled=false; btn_delete.textContent=prevText; return;
       }
       const payload= pid ? { planner_id:pid, id:idInfo, rule_id:idInfo, uid:idInfo } : { id:idInfo, rule_id:idInfo, uid:idInfo };
@@ -1400,7 +1412,7 @@ if (btn_duplicate) {
         this._pendingEdits.delete(String(idInfo));
         await this._hass.callService('chronotask','remove_rule', payload);
       } catch(err){
-        console.error('Delete fallito (chronotask.remove_rule):',err);
+        console.error(this._t('errDeleteFailed'),err);
       } finally {
         btn_delete.disabled=false; btn_delete.textContent=prevText;
       }
@@ -1433,7 +1445,7 @@ if (btn_duplicate) {
       const eid=getEntityId();
       _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
-    }catch(err){ console.error('ChronoTask: errore render campi action:',err); }
+    }catch(err){ console.error(this._t('errRenderActionFields'),err); }
   }
 }
 
@@ -1543,7 +1555,7 @@ try{
     window.customCards.push({
       type:'chronotask-weekly-card',
       name:'ChronoTask Weekly',
-      description:'Planner settimanale ricorrente',
+      description:'Recurring weekly planner',
       preview:true,
       documentationURL:'https://github.com/andker87/Home-Assistant-ChronoTask'
     });

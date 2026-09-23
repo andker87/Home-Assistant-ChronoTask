@@ -514,7 +514,7 @@ try{
     window.customCards.push({
       type:'chronotask-tag-manager',
       name:'ChronoTask Tag Manager',
-      description:'Gestione regole per tag (abilita/disabilita)',
+      description:'Manage rules by tag (enable/disable)',
       preview:true,
       documentationURL:'https://github.com/andker87/Home-Assistant-ChronoTask'
     });
