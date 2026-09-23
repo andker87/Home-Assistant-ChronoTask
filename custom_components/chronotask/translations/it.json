@@ -39,6 +39,11 @@
           "active_rules": { "name": "Regole attive" }
         }
       }
+    },
+    "calendar": {
+      "planner": {
+        "name": "{name}"
+      }
     }
   }
 }
