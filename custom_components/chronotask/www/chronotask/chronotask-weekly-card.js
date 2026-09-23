@@ -26,9 +26,257 @@ function _tagsToText(arr){
   return a.join(', ');
 }
 
+// ---------------------------------------------------------------------------
+// i18n: lingua rilevata da hass.locale.language / hass.language, con
+// fallback su inglese per qualunque lingua non tradotta (l'italiano resta
+// disponibile solo per chi ha davvero HA in italiano). I nomi dei giorni
+// nella griglia usano già Intl.DateTimeFormat (qualunque lingua HA supporti,
+// non solo it/en); qui serve solo per il resto della UI della card.
+// ---------------------------------------------------------------------------
+const CT_STRINGS={
+  it:{
+    defaultTitle:'Programmazione settimanale (ricorrente)',
+    enable:'Abilita', disable:'Disabilita',
+    addRule:'+ Aggiungi regola', addSlot:'+ Aggiungi fascia',
+    confirmDisableAll:(n)=>`Disabilitare tutte le ${n} regole attive di questo planner?`,
+    dialogNotAvailable:'Dialog avanzato non disponibile: aggiorna Home Assistant.',
+    editRule:'Modifica regola', newRuleDup:'Nuova regola (duplica)', newRule:'Nuova regola',
+    duplicate:'Duplica', delete:'Elimina',
+    title:'Titolo', titlePlaceholder:'Es. Luci Soggiorno',
+    labelColor:'Colore etichetta', labelIcon:'Icona',
+    active:'Attiva',
+    tagsLabel:'Tag (separati da virgole)', tagsPlaceholder:'es. luci, vacanza',
+    entity:'Entità', entityPlaceholder:'es. light.soggiorno',
+    timeSlots:'Fasce orarie',
+    actionStart:'Action (inizio)', actionEnd:'Action (fine, opzionale)', action:'Action',
+    cancel:'Annulla', save:'Salva',
+    slotLabel:'Fascia', removeSlot:'Rimuovi fascia',
+    day:'Giorno', startTime:'Ora inizio', endTimeOpt:'Ora fine (opz.)', endDay:'Giorno fine',
+    sameAsStart:'(uguale a inizio)',
+    selectIcon:'Seleziona icona (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectService:'(seleziona servizio)',
+    notInDomain:(s)=>`${s} (non nel dominio attuale)`,
+    deleting:'Eliminando…',
+    defaultColor:'Colore predefinito', hexOrName:'HEX o nome colore (es. red)',
+    includeDomains:'Includi domini (autocomplete entità)', excludeDomains:'Escludi domini',
+    entityCT:'Entità (ChronoTask)', startHour:'Ora inizio', endHour:'Ora fine',
+    slotInterval:'Intervallo slot', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
+    configureRulesEntity:'(configura rules_entity)', closeAria:'Chiudi',
+    fieldBrightness:'Luminosità (0–255)', fieldTransition:'Transizione (s)', fieldEffect:'Effetto', egColorloop:'es. colorloop',
+    fieldTemperature:'Temperatura', fieldPosition:'Posizione (0–100)', fieldVolume:'Volume (0.0–1.0)',
+    warnNoStartService:'Seleziona un servizio di inizio.', warnNoValidSlots:'Aggiungi almeno una fascia oraria valida (giorno + ora inizio).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',
+    errActionSelectorInit:'ChronoTask: errore inizializzazione action selector:',
+    errNoServiceToSave:'ChronoTask: nessun servizio disponibile per salvare la regola.',
+    warnNoIdToDelete:'Nessun id/uid trovato per la regola; impossibile eliminare.',
+    errDeleteFailed:'Delete fallito (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: errore render campi action:',
+  },
+  en:{
+    defaultTitle:'Weekly schedule (recurring)',
+    enable:'Enable', disable:'Disable',
+    addRule:'+ Add rule', addSlot:'+ Add slot',
+    confirmDisableAll:(n)=>`Disable all ${n} active rules in this planner?`,
+    dialogNotAvailable:'Advanced dialog not available: please update Home Assistant.',
+    editRule:'Edit rule', newRuleDup:'New rule (duplicate)', newRule:'New rule',
+    duplicate:'Duplicate', delete:'Delete',
+    title:'Title', titlePlaceholder:'e.g. Living room light',
+    labelColor:'Label color', labelIcon:'Icon',
+    active:'Active',
+    tagsLabel:'Tags (comma-separated)', tagsPlaceholder:'e.g. lights, vacation',
+    entity:'Entity', entityPlaceholder:'e.g. light.living_room',
+    timeSlots:'Time slots',
+    actionStart:'Action (start)', actionEnd:'Action (end, optional)', action:'Action',
+    cancel:'Cancel', save:'Save',
+    slotLabel:'Slot', removeSlot:'Remove slot',
+    day:'Day', startTime:'Start time', endTimeOpt:'End time (opt.)', endDay:'End day',
+    sameAsStart:'(same as start)',
+    selectIcon:'Select icon (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectService:'(select service)',
+    notInDomain:(s)=>`${s} (not in current domain)`,
+    deleting:'Deleting…',
+    defaultColor:'Default color', hexOrName:'HEX or color name (e.g. red)',
+    includeDomains:'Include domains (entity autocomplete)', excludeDomains:'Exclude domains',
+    entityCT:'Entity (ChronoTask)', startHour:'Start hour', endHour:'End hour',
+    slotInterval:'Slot interval', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
+    configureRulesEntity:'(configure rules_entity)', closeAria:'Close',
+    fieldBrightness:'Brightness (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effect', egColorloop:'e.g. colorloop',
+    fieldTemperature:'Temperature', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
+    warnNoStartService:'Select a start service.', warnNoValidSlots:'Add at least one valid time slot (day + start time).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker not available, using the plain field:',
+    errActionSelectorInit:'ChronoTask: error initializing the action selector:',
+    errNoServiceToSave:'ChronoTask: no service available to save the rule.',
+    warnNoIdToDelete:'No id/uid found for this rule; cannot delete.',
+    errDeleteFailed:'Delete failed (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: error rendering action fields:',
+  },
+  fr:{
+    defaultTitle:'Planning hebdomadaire (récurrent)',
+    enable:'Activer', disable:'Désactiver',
+    addRule:'+ Ajouter une règle', addSlot:'+ Ajouter un créneau',
+    confirmDisableAll:(n)=>`Désactiver les ${n} règles actives de ce planificateur ?`,
+    dialogNotAvailable:'Boîte de dialogue avancée non disponible : veuillez mettre à jour Home Assistant.',
+    editRule:'Modifier la règle', newRuleDup:'Nouvelle règle (dupliquée)', newRule:'Nouvelle règle',
+    duplicate:'Dupliquer', delete:'Supprimer',
+    title:'Titre', titlePlaceholder:'ex. Lumière du salon',
+    labelColor:"Couleur de l'étiquette", labelIcon:'Icône',
+    active:'Actif',
+    tagsLabel:'Étiquettes (séparées par des virgules)', tagsPlaceholder:'ex. lumières, vacances',
+    entity:'Entité', entityPlaceholder:'ex. light.salon',
+    timeSlots:'Créneaux horaires',
+    actionStart:'Action (début)', actionEnd:'Action (fin, facultatif)', action:'Action',
+    cancel:'Annuler', save:'Enregistrer',
+    slotLabel:'Créneau', removeSlot:'Supprimer le créneau',
+    day:'Jour', startTime:'Heure de début', endTimeOpt:'Heure de fin (opt.)', endDay:'Jour de fin',
+    sameAsStart:'(identique au début)',
+    selectIcon:'Sélectionner une icône (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectService:'(sélectionner un service)',
+    notInDomain:(s)=>`${s} (hors du domaine actuel)`,
+    deleting:'Suppression…',
+    defaultColor:'Couleur par défaut', hexOrName:'Code HEX ou nom de couleur (ex. red)',
+    includeDomains:'Inclure les domaines (autocomplétion des entités)', excludeDomains:'Exclure les domaines',
+    entityCT:'Entité (ChronoTask)', startHour:'Heure de début', endHour:'Heure de fin',
+    slotInterval:'Intervalle des créneaux', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
+    configureRulesEntity:'(configurer rules_entity)', closeAria:'Fermer',
+    fieldBrightness:'Luminosité (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effet', egColorloop:'ex. colorloop',
+    fieldTemperature:'Température', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
+    warnNoStartService:'Sélectionnez un service de début.', warnNoValidSlots:'Ajoutez au moins un créneau horaire valide (jour + heure de début).',
+    errIconPickerFallback:'ChronoTask : ha-icon-picker non disponible, utilisation du champ simple :',
+    errActionSelectorInit:"ChronoTask : erreur d'initialisation du sélecteur d'action :",
+    errNoServiceToSave:'ChronoTask : aucun service disponible pour enregistrer la règle.',
+    warnNoIdToDelete:'Aucun id/uid trouvé pour cette règle ; suppression impossible.',
+    errDeleteFailed:'Échec de la suppression (chronotask.remove_rule) :',
+    errRenderActionFields:"ChronoTask : erreur lors de l'affichage des champs d'action :",
+  },
+  de:{
+    defaultTitle:'Wochenplan (wiederkehrend)',
+    enable:'Aktivieren', disable:'Deaktivieren',
+    addRule:'+ Regel hinzufügen', addSlot:'+ Zeitfenster hinzufügen',
+    confirmDisableAll:(n)=>`Alle ${n} aktiven Regeln dieses Planers deaktivieren?`,
+    dialogNotAvailable:'Erweiterter Dialog nicht verfügbar: Bitte Home Assistant aktualisieren.',
+    editRule:'Regel bearbeiten', newRuleDup:'Neue Regel (Duplikat)', newRule:'Neue Regel',
+    duplicate:'Duplizieren', delete:'Löschen',
+    title:'Titel', titlePlaceholder:'z. B. Wohnzimmerlicht',
+    labelColor:'Beschriftungsfarbe', labelIcon:'Symbol',
+    active:'Aktiv',
+    tagsLabel:'Tags (durch Kommas getrennt)', tagsPlaceholder:'z. B. Licht, Urlaub',
+    entity:'Entität', entityPlaceholder:'z. B. light.wohnzimmer',
+    timeSlots:'Zeitfenster',
+    actionStart:'Aktion (Start)', actionEnd:'Aktion (Ende, optional)', action:'Aktion',
+    cancel:'Abbrechen', save:'Speichern',
+    slotLabel:'Zeitfenster', removeSlot:'Zeitfenster entfernen',
+    day:'Tag', startTime:'Startzeit', endTimeOpt:'Endzeit (opt.)', endDay:'Endtag',
+    sameAsStart:'(wie Start)',
+    selectIcon:'Symbol auswählen (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectService:'(Dienst auswählen)',
+    notInDomain:(s)=>`${s} (nicht in aktueller Domain)`,
+    deleting:'Wird gelöscht…',
+    defaultColor:'Standardfarbe', hexOrName:'HEX-Code oder Farbname (z. B. red)',
+    includeDomains:'Domains einschließen (Entitäts-Autovervollständigung)', excludeDomains:'Domains ausschließen',
+    entityCT:'Entität (ChronoTask)', startHour:'Startzeit', endHour:'Endzeit',
+    slotInterval:'Zeitfenster-Intervall', min15:'15 Min', min30:'30 Min', min45:'45 Min', h1:'1 Std',
+    configureRulesEntity:'(rules_entity konfigurieren)', closeAria:'Schließen',
+    fieldBrightness:'Helligkeit (0–255)', fieldTransition:'Übergang (s)', fieldEffect:'Effekt', egColorloop:'z. B. colorloop',
+    fieldTemperature:'Temperatur', fieldPosition:'Position (0–100)', fieldVolume:'Lautstärke (0.0–1.0)',
+    warnNoStartService:'Wähle einen Start-Dienst aus.', warnNoValidSlots:'Füge mindestens ein gültiges Zeitfenster hinzu (Tag + Startzeit).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker nicht verfügbar, verwende das einfache Feld:',
+    errActionSelectorInit:'ChronoTask: Fehler beim Initialisieren der Aktionsauswahl:',
+    errNoServiceToSave:'ChronoTask: Kein Dienst verfügbar, um die Regel zu speichern.',
+    warnNoIdToDelete:'Keine id/uid für diese Regel gefunden; Löschen nicht möglich.',
+    errDeleteFailed:'Löschen fehlgeschlagen (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: Fehler beim Rendern der Aktionsfelder:',
+  },
+  es:{
+    defaultTitle:'Planificación semanal (recurrente)',
+    enable:'Activar', disable:'Desactivar',
+    addRule:'+ Añadir regla', addSlot:'+ Añadir franja',
+    confirmDisableAll:(n)=>`¿Desactivar las ${n} reglas activas de este planificador?`,
+    dialogNotAvailable:'Diálogo avanzado no disponible: actualiza Home Assistant.',
+    editRule:'Editar regla', newRuleDup:'Nueva regla (duplicada)', newRule:'Nueva regla',
+    duplicate:'Duplicar', delete:'Eliminar',
+    title:'Título', titlePlaceholder:'ej. Luz del salón',
+    labelColor:'Color de etiqueta', labelIcon:'Icono',
+    active:'Activa',
+    tagsLabel:'Etiquetas (separadas por comas)', tagsPlaceholder:'ej. luces, vacaciones',
+    entity:'Entidad', entityPlaceholder:'ej. light.salon',
+    timeSlots:'Franjas horarias',
+    actionStart:'Acción (inicio)', actionEnd:'Acción (fin, opcional)', action:'Acción',
+    cancel:'Cancelar', save:'Guardar',
+    slotLabel:'Franja', removeSlot:'Eliminar franja',
+    day:'Día', startTime:'Hora de inicio', endTimeOpt:'Hora de fin (opc.)', endDay:'Día de fin',
+    sameAsStart:'(igual que el inicio)',
+    selectIcon:'Seleccionar icono (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectService:'(seleccionar servicio)',
+    notInDomain:(s)=>`${s} (no está en el dominio actual)`,
+    deleting:'Eliminando…',
+    defaultColor:'Color predeterminado', hexOrName:'Código HEX o nombre de color (ej. red)',
+    includeDomains:'Incluir dominios (autocompletar entidades)', excludeDomains:'Excluir dominios',
+    entityCT:'Entidad (ChronoTask)', startHour:'Hora de inicio', endHour:'Hora de fin',
+    slotInterval:'Intervalo de franja', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
+    configureRulesEntity:'(configura rules_entity)', closeAria:'Cerrar',
+    fieldBrightness:'Brillo (0-255)', fieldTransition:'Transición (s)', fieldEffect:'Efecto', egColorloop:'ej. colorloop',
+    fieldTemperature:'Temperatura', fieldPosition:'Posición (0-100)', fieldVolume:'Volumen (0.0-1.0)',
+    warnNoStartService:'Selecciona un servicio de inicio.', warnNoValidSlots:'Añade al menos una franja horaria válida (día + hora de inicio).',
+    errIconPickerFallback:'ChronoTask: ha-icon-picker no disponible, se usa el campo simple:',
+    errActionSelectorInit:'ChronoTask: error al inicializar el selector de acción:',
+    errNoServiceToSave:'ChronoTask: no hay ningún servicio disponible para guardar la regla.',
+    warnNoIdToDelete:'No se encontró id/uid para esta regla; no se puede eliminar.',
+    errDeleteFailed:'Error al eliminar (chronotask.remove_rule):',
+    errRenderActionFields:'ChronoTask: error al renderizar los campos de acción:',
+  },
+  zh:{
+    defaultTitle:'每周计划（循环）',
+    enable:'启用', disable:'禁用',
+    addRule:'+ 添加规则', addSlot:'+ 添加时段',
+    confirmDisableAll:(n)=>`确定要禁用此计划器中所有 ${n} 条已启用的规则吗？`,
+    dialogNotAvailable:'高级对话框不可用：请更新 Home Assistant。',
+    editRule:'编辑规则', newRuleDup:'新规则（复制）', newRule:'新规则',
+    duplicate:'复制', delete:'删除',
+    title:'标题', titlePlaceholder:'例如：客厅灯',
+    labelColor:'标签颜色', labelIcon:'图标',
+    active:'启用',
+    tagsLabel:'标签（用逗号分隔）', tagsPlaceholder:'例如：灯光, 假期',
+    entity:'实体', entityPlaceholder:'例如：light.living_room',
+    timeSlots:'时段',
+    actionStart:'动作（开始）', actionEnd:'动作（结束，可选）', action:'动作',
+    cancel:'取消', save:'保存',
+    slotLabel:'时段', removeSlot:'移除时段',
+    day:'星期', startTime:'开始时间', endTimeOpt:'结束时间（可选）', endDay:'结束日',
+    sameAsStart:'（与开始相同）',
+    selectIcon:'选择图标（mdi）', iconPlaceholder:'mdi:lightbulb',
+    selectService:'（选择服务）',
+    notInDomain:(s)=>`${s}（不在当前域中）`,
+    deleting:'正在删除…',
+    defaultColor:'默认颜色', hexOrName:'HEX 或颜色名称（例如 red）',
+    includeDomains:'包含域（实体自动补全）', excludeDomains:'排除域',
+    entityCT:'实体（ChronoTask）', startHour:'开始时间', endHour:'结束时间',
+    slotInterval:'时段间隔', min15:'15 分钟', min30:'30 分钟', min45:'45 分钟', h1:'1 小时',
+    configureRulesEntity:'（配置 rules_entity）', closeAria:'关闭',
+    fieldBrightness:'亮度（0–255）', fieldTransition:'过渡时间（秒）', fieldEffect:'效果', egColorloop:'例如：colorloop',
+    fieldTemperature:'温度', fieldPosition:'位置（0–100）', fieldVolume:'音量（0.0–1.0）',
+    warnNoStartService:'请选择一个开始服务。', warnNoValidSlots:'请至少添加一个有效的时段（星期 + 开始时间）。',
+    errIconPickerFallback:'ChronoTask：ha-icon-picker 不可用，使用简单输入框：',
+    errActionSelectorInit:'ChronoTask：初始化动作选择器时出错：',
+    errNoServiceToSave:'ChronoTask：没有可用的服务来保存规则。',
+    warnNoIdToDelete:'未找到该规则的 id/uid；无法删除。',
+    errDeleteFailed:'删除失败（chronotask.remove_rule）：',
+    errRenderActionFields:'ChronoTask：渲染动作字段时出错：',
+  },
+};
+function _ctLang(hass){
+  const raw=String(hass?.locale?.language||hass?.language||'en').toLowerCase();
+  const short=raw.split('-')[0];
+  return CT_STRINGS[short]?short:'en';
+}
+function _ctT(hass,key,...args){
+  const dict=CT_STRINGS[_ctLang(hass)];
+  const v=dict[key];
+  return typeof v==='function' ? v(...args) : (v??CT_STRINGS.en[key]??key);
+}
+
 class ChronoTaskWeeklyCard extends HTMLElement{
   static getConfigElement(){ return document.createElement('chronotask-weekly-card-editor'); }
-  static getStubConfig(hass){ let rules_entity; try{ if(hass?.states){ rules_entity=Object.keys(hass.states).find(eid=> eid.startsWith('sensor.') && hass.states[eid]?.attributes?.planner_id); } }catch(_){} return { title:'Programmazione settimanale (ricorrente)', start_hour:'06:00', end_hour:'22:00', slot_minutes:60, ...(rules_entity?{rules_entity}:{}) }; }
+  static getStubConfig(hass){ let rules_entity; try{ if(hass?.states){ rules_entity=Object.keys(hass.states).find(eid=> eid.startsWith('sensor.') && hass.states[eid]?.attributes?.planner_id); } }catch(_){} return { title:_ctT(hass,'defaultTitle'), start_hour:'06:00', end_hour:'22:00', slot_minutes:60, ...(rules_entity?{rules_entity}:{}) }; }
 
   constructor(){
     super();
@@ -44,18 +292,20 @@ class ChronoTaskWeeklyCard extends HTMLElement{
     const cfg={...(config||{})};
     if(cfg.entity && !cfg.rules_entity) cfg.rules_entity=cfg.entity;
     this._config=Object.assign(
-      { rules_entity:undefined, planner_id:undefined, planner_name:undefined, start_hour:'06:00', end_hour:'22:00', slot_minutes:60, locale:'it', title:'Programmazione settimanale (ricorrente)', default_color:'#5a8e62', entity_include_domains:undefined, entity_exclude_domains:undefined },
+      { rules_entity:undefined, planner_id:undefined, planner_name:undefined, start_hour:'06:00', end_hour:'22:00', slot_minutes:60, locale:undefined, title:undefined, default_color:'#5a8e62', entity_include_domains:undefined, entity_exclude_domains:undefined },
       cfg
     );
     this._config.default_color=_toHexFromAny(this._config.default_color||'#5a8e62','#5a8e62');
 
     if(!this.shadowRoot) this.attachShadow({mode:'open'});
     this._ensureLayout();
-    this._els.title.textContent=this._config.title||'Programmazione settimanale (ricorrente)';
+    this._els.title.textContent=this._config.title||this._t('defaultTitle');
     this._scheduleUpdate();
   }
 
   getCardSize(){ return 8; }
+
+  _t(key,...args){ return _ctT(this._hass,key,...args); }
 
   set hass(hass){
     this._hass=hass;
@@ -238,11 +488,11 @@ _ensureLayout(){
           <div class="title" id="title"></div>
         </div>
         <div class="hdr-center">
-          <button class="btn" id="btn_add">+ Aggiungi regola</button>
+          <button class="btn" id="btn_add"></button>
         </div>
         <div class="hdr-right">
-          <button class="chip-btn chip-enable" id="btn_enable_all" type="button">Abilita</button>
-          <button class="chip-btn chip-disable" id="btn_disable_all" type="button">Disabilita</button>
+          <button class="chip-btn chip-enable" id="btn_enable_all" type="button"></button>
+          <button class="chip-btn chip-disable" id="btn_disable_all" type="button"></button>
         </div>
       </div>
 
@@ -268,6 +518,7 @@ _ensureLayout(){
   this._els.btn_disable_all.addEventListener('click',(ev)=>{ev.preventDefault();ev.stopPropagation();this._setAllEnabled(false);});
 
   this._buildGrid();
+  this._applyI18nStatic();
   this._rebuildOverlayColumns();
   this._layoutReady=true;
 
@@ -319,6 +570,13 @@ _ensureLayout(){
       curMin+=slotMin;
     }
     this._measure();
+  }
+
+  _applyI18nStatic(){
+    if(!this._els) return;
+    if(this._els.btn_add) this._els.btn_add.textContent=this._t('addRule');
+    if(this._els.btn_enable_all) this._els.btn_enable_all.textContent=this._t('enable');
+    if(this._els.btn_disable_all) this._els.btn_disable_all.textContent=this._t('disable');
   }
 
   _cell(t,c){ const d=document.createElement('div'); d.className='cell '+(c||''); if(t) d.textContent=t; return d; }
@@ -531,7 +789,7 @@ async _setAllEnabled(enabled){
     if(!enabled){
       const activeCount = rules.filter(r => r?.enabled !== false).length;
       if(!activeCount) return;
-      const ok = confirm(`Disabilitare tutte le ${activeCount} regole attive di questo planner?`);
+      const ok = confirm(this._t('confirmDisableAll',activeCount));
       if(!ok) return;
     }
 
@@ -573,12 +831,13 @@ async _setAllEnabled(enabled){
 
   async _update(){
     if(!this._hass||!this._els) return;
+    this._applyI18nStatic();
 
     if(!this._rulesEntityId||!this._hass.states[this._rulesEntityId]){
-      this._els.title.textContent=`${this._config.title} — (configura rules_entity)`;
+      this._els.title.textContent=`${this._config.title||this._t('defaultTitle')} — ${this._t('configureRulesEntity')}`;
       return;
     }
-    this._els.title.textContent=this._config.title;
+    this._els.title.textContent=this._config.title||this._t('defaultTitle');
 
     // Rimuovi SOLO temp scaduti; non toccare i blocchi pending ottimistici
     try{
@@ -730,65 +989,66 @@ async _setAllEnabled(enabled){
 
   _openDialog(ctx={}){
     if(this._activeDialog){ setTimeout(()=>{ if(!this._activeDialog) this._openDialog(ctx); },120); return; }
-    const HaDialog=customElements.get('ha-dialog'); if(!HaDialog){ alert('Dialog avanzato non disponibile: aggiorna Home Assistant.'); return; }
+    const HaDialog=customElements.get('ha-dialog'); if(!HaDialog){ alert(this._t('dialogNotAvailable')); return; }
     const existing=ctx.existing||null; const prefill=ctx.prefill||null;
     const dlg=document.createElement('ha-dialog'); this._activeDialog=dlg; dlg.open=true; try{ dlg.scrimClickAction='close'; dlg.escapeKeyAction='close'; }catch(_){ }
     dlg.addEventListener('closed',()=>{ try{ dlg.remove(); }catch(_){ } if(this._activeDialog===dlg) this._activeDialog=null; });
 
     const content=document.createElement('div'); content.classList.add('apw-root'); content.style.minWidth='360px'; content.style.maxWidth='92vw';
-    const dialogTitleText= existing ? 'Modifica regola' : (prefill ? 'Nuova regola (duplica)' : 'Nuova regola');
+    const dialogTitleText= existing ? this._t('editRule') : (prefill ? this._t('newRuleDup') : this._t('newRule'));
 
-    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:0 0 8px}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}</style>
+    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:0 0 8px}.dialog-header-side{display:flex;align-items:center;gap:4px}.dialog-header-left{justify-self:start}.dialog-header-right{justify-self:end}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}.text-btn{display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--primary-color);font-family:inherit}.text-btn:hover{background:var(--divider-color)}.text-btn:active{transform:translateY(1px)}.text-btn.danger{color:var(--error-color,#b00020)}.text-btn:disabled{opacity:.5;cursor:default}</style>
       <div class="dialog-header">
-        <button type="button" class="icon-btn" id="btn_close" aria-label="Chiudi">✕</button>
         <div class="dialog-title" id="dlg_title">${dialogTitleText}</div>
-        <mwc-button id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">Duplica</mwc-button>
-        <mwc-button id="btn_delete_text" class="danger" style="${existing?'':'visibility:hidden'}">Elimina</mwc-button>
+        <div class="dialog-header-side dialog-header-right">
+          <button type="button" class="text-btn" id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">${this._t('duplicate')}</button>
+          <button type="button" class="text-btn danger" id="btn_delete_text" style="${existing?'':'visibility:hidden'}">${this._t('delete')}</button>
+        </div>
       </div>
       <input type="hidden" id="f_id" />
       <div class="dialog-scroll">
         <div class="form-row inline2">
           <div style="flex:1 1 auto;">
-            <label for="f_title">Titolo</label>
-            <input id="f_title" placeholder="Es. Luci Soggiorno" />
+            <label for="f_title">${this._t('title')}</label>
+            <input id="f_title" placeholder="${this._t('titlePlaceholder')}" />
           </div>
         </div>
 
         <div class="two">
-          <div class="form-row" id="color_wrap"><label for="f_color">Colore etichetta</label><input id="f_color" type="color" /></div>
-          <div class="form-row" id="icon_wrap"><label for="f_icon">Icona</label></div>
+          <div class="form-row" id="color_wrap"><label for="f_color">${this._t('labelColor')}</label><input id="f_color" type="color" /></div>
+          <div class="form-row" id="icon_wrap"><label for="f_icon">${this._t('labelIcon')}</label></div>
         </div>
 
         <div class="form-row">
           <div class="inline2">
-            <div><span class="small">Attiva</span></div>
+            <div><span class="small">${this._t('active')}</span></div>
             <div id="enabled_wrap"></div>
           </div>
         </div>
 
         <div class="form-row">
-          <label for="f_tags">Tag (separati da virgole)</label>
-          <input id="f_tags" placeholder="es. luci, vacanza" />
+          <label for="f_tags">${this._t('tagsLabel')}</label>
+          <input id="f_tags" placeholder="${this._t('tagsPlaceholder')}" />
         </div>
 
-        <div class="form-row" id="row_entity"><label for="f_entity">Entità</label></div>
+        <div class="form-row" id="row_entity"><label for="f_entity">${this._t('entity')}</label></div>
 
-        <div class="section"><div class="section-title">Fasce orarie</div>
+        <div class="section"><div class="section-title">${this._t('timeSlots')}</div>
           <div id="slots_wrap"></div>
-          <div class="form-row" style="text-align:right"><mwc-button id="btn_add_slot" type="button">+ Aggiungi fascia</mwc-button></div>
+          <div class="form-row" style="text-align:right"><button type="button" class="text-btn" id="btn_add_slot">${this._t('addSlot')}</button></div>
         </div>
 
-        <div class="section"><div class="section-title">Action (inizio)</div>
-          <div class="form-row"><label for="f_service_sel">Action</label><select id="f_service_sel"></select></div>
+        <div class="section"><div class="section-title">${this._t('actionStart')}</div>
+          <div class="form-row"><label for="f_service_sel">${this._t('action')}</label><select id="f_service_sel"></select></div>
           <div id="svc_fields"></div>
         </div>
 
-        <div class="section"><div class="section-title">Action (fine, opzionale)</div>
-          <div class="form-row"><label for="f_service_sel_end">Action</label><select id="f_service_sel_end"></select></div>
+        <div class="section"><div class="section-title">${this._t('actionEnd')}</div>
+          <div class="form-row"><label for="f_service_sel_end">${this._t('action')}</label><select id="f_service_sel_end"></select></div>
           <div id="svc_fields_end"></div>
         </div>
       </div>
-      <div class="footer3"><mwc-button id="btn_cancel">Annulla</mwc-button><mwc-button id="btn_save">Salva</mwc-button></div>`;
+      <div class="footer3"><button type="button" class="text-btn" id="btn_cancel">${this._t('cancel')}</button><button type="button" class="text-btn" id="btn_save">${this._t('save')}</button></div>`;
 
     dlg.appendChild(content); document.body.appendChild(dlg);
 
@@ -812,12 +1072,12 @@ async _setAllEnabled(enabled){
       try{ dlg.remove(); }catch(_){ }
       if(this._activeDialog===dlg) this._activeDialog=null;
     };
-    const btn_close_early=$('#btn_close'); const btn_cancel_early=$('#btn_cancel');
-    if(btn_close_early) btn_close_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
+    const btn_cancel_early=$('#btn_cancel');
     if(btn_cancel_early) btn_cancel_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
 
     const stepSec=this._getSlotMinutes()*60;
-    const DAY_OPTIONS='<option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option>';
+    const _cap=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
+    const DAY_OPTIONS=this._weekdayNames(_ctLang(this._hass),'long').map((n,i)=>`<option value="${i}">${_cap(n)}</option>`).join('');
 
     // --- Fasce orarie (multi-slot): una regola può avere più righe
     // (day/start/end?/end_day?) che condividono la stessa azione. ---
@@ -829,16 +1089,16 @@ async _setAllEnabled(enabled){
       const row=document.createElement('div'); row.className='slot-row';
       row.innerHTML=`
         <div class="slot-row-head">
-          <span class="slot-row-title">Fascia</span>
-          <button type="button" class="icon-btn small btn_remove_slot" aria-label="Rimuovi fascia">🗑</button>
+          <span class="slot-row-title">${this._t('slotLabel')}</span>
+          <button type="button" class="icon-btn small btn_remove_slot" aria-label="${this._t('removeSlot')}">🗑</button>
         </div>
         <div class="two">
-          <div class="form-row"><label>Giorno</label><select class="f_slot_day">${DAY_OPTIONS}</select></div>
-          <div class="form-row"><label>Ora inizio</label><input class="f_slot_start" type="time" step="${stepSec}" value="08:00" /></div>
+          <div class="form-row"><label>${this._t('day')}</label><select class="f_slot_day">${DAY_OPTIONS}</select></div>
+          <div class="form-row"><label>${this._t('startTime')}</label><input class="f_slot_start" type="time" step="${stepSec}" value="08:00" /></div>
         </div>
         <div class="two">
-          <div class="form-row"><label>Ora fine (opz.)</label><input class="f_slot_end" type="time" step="${stepSec}" placeholder="09:00" /></div>
-          <div class="form-row"><label>Giorno fine</label><select class="f_slot_end_day"><option value="">(uguale a inizio)</option>${DAY_OPTIONS}</select></div>
+          <div class="form-row"><label>${this._t('endTimeOpt')}</label><input class="f_slot_end" type="time" step="${stepSec}" placeholder="09:00" /></div>
+          <div class="form-row"><label>${this._t('endDay')}</label><select class="f_slot_end_day"><option value="">${this._t('sameAsStart')}</option>${DAY_OPTIONS}</select></div>
         </div>`;
       slots_wrap.appendChild(row);
       const dayEl=row.querySelector('.f_slot_day'), startEl=row.querySelector('.f_slot_start'), endEl=row.querySelector('.f_slot_end'), endDayEl=row.querySelector('.f_slot_end_day');
@@ -899,13 +1159,13 @@ async _setAllEnabled(enabled){
       // dialog, compresi i pulsanti collegati più avanti.
       try{
         icon_picker=document.createElement('ha-icon-picker');
-        icon_picker.hass=this._hass; icon_picker.label='Seleziona icona (mdi)'; icon_picker.value='';
+        icon_picker.hass=this._hass; icon_picker.label=this._t('selectIcon'); icon_picker.value='';
         try{ icon_picker.setAttribute('outlined',''); }catch(_){ }
         icon_picker.style.cssText='display:block;width:100%;box-sizing:border-box;border:1px solid var(--divider-color);border-radius:8px;min-height:40px;padding:6px 8px;background:var(--card-background-color);color:var(--primary-text-color)';
         icon_wrap.appendChild(icon_picker);
         icon_picker.addEventListener('value-changed',ev=>{ const v=this._sanitizeIcon(ev.detail?.value); icon_picker.value=v; });
       }catch(err){
-        console.error('ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',err);
+        console.error(this._t('errIconPickerFallback'),err);
         _buildPlainIconInput();
       }
     } else {
@@ -928,7 +1188,7 @@ async _setAllEnabled(enabled){
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
     {
-      const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder='es. light.soggiorno'; inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
+      const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder=this._t('entityPlaceholder'); inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
       const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
       const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
         const dom=eid.split('.')[0]; if(includeDomains && !includeDomains.includes(dom)) return false; if(excludeDomains && excludeDomains.includes(dom)) return false; return true;
@@ -1026,11 +1286,11 @@ if (prefill && !existing) {
         }
         row.appendChild(input); container.appendChild(row); return input;
       };
-      if(domain==='light'&&service==='turn_on'){ addRow('brightness','Luminosità (0–255)','number',{min:0,max:255,step:1}); addRow('transition','Transizione (s)','number',{min:0,step:0.1}); addRow('effect','Effetto','text',{placeholder:'es. colorloop'}); }
-      else if(domain==='climate'&&service==='set_temperature'){ addRow('temperature','Temperatura','number',{min:5,max:35,step:0.5}); }
+      if(domain==='light'&&service==='turn_on'){ addRow('brightness',this._t('fieldBrightness'),'number',{min:0,max:255,step:1}); addRow('transition',this._t('fieldTransition'),'number',{min:0,step:0.1}); addRow('effect',this._t('fieldEffect'),'text',{placeholder:this._t('egColorloop')}); }
+      else if(domain==='climate'&&service==='set_temperature'){ addRow('temperature',this._t('fieldTemperature'),'number',{min:5,max:35,step:0.5}); }
       else if(domain==='climate'&&service==='set_hvac_mode'){ addRow('hvac_mode','HVAC mode','select',{options:['off','heat','cool','auto','dry','fan_only']}); }
-      else if(domain==='cover'&&(service==='set_cover_position'||service==='set_position')){ addRow('position','Posizione (0–100)','number',{min:0,max:100,step:1}); }
-      else if(domain==='media_player'&&service==='volume_set'){ addRow('volume_level','Volume (0.0–1.0)','number',{min:0,max:1,step:0.01}); }
+      else if(domain==='cover'&&(service==='set_cover_position'||service==='set_position')){ addRow('position',this._t('fieldPosition'),'number',{min:0,max:100,step:1}); }
+      else if(domain==='media_player'&&service==='volume_set'){ addRow('volume_level',this._t('fieldVolume'),'number',{min:0,max:1,step:0.01}); }
       // Campi non scalari (liste/oggetti): l'input testuale li mostra come CSV/JSON
       // e 'kind' dice a _collectServiceData come riconvertirli, così il tipo non
       // viene corrotto (es. rgb_color -> stringa) risalvando una regola invariata.
@@ -1063,9 +1323,9 @@ if (prefill && !existing) {
     };
     const _populateServiceSelect=(selectEl,services,preselected)=>{
       if(!selectEl) return; selectEl.innerHTML='';
-      const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent='(seleziona servizio)'; selectEl.appendChild(placeholder);
+      const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent=this._t('selectService'); selectEl.appendChild(placeholder);
       for(const svc of services){ const opt=document.createElement('option'); opt.value=String(svc); opt.textContent=String(svc); selectEl.appendChild(opt); }
-      if(preselected && !services.includes(preselected)){ const extra=document.createElement('option'); extra.value=preselected; extra.textContent=preselected+' (non nel dominio attuale)'; selectEl.appendChild(extra);}
+      if(preselected && !services.includes(preselected)){ const extra=document.createElement('option'); extra.value=preselected; extra.textContent=this._t('notInDomain',preselected); selectEl.appendChild(extra);}
       selectEl.value=preselected && (services.includes(preselected) || preselected) ? preselected : '';
     };
     const _collectServiceData=(container)=>{
@@ -1110,7 +1370,7 @@ if (prefill && !existing) {
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
     };
 
-    try{ refreshServiceSelects(); }catch(err){ console.error('ChronoTask: errore inizializzazione action selector:',err); }
+    try{ refreshServiceSelects(); }catch(err){ console.error(this._t('errActionSelectorInit'),err); }
     const f_entityEl=row_entity.querySelector('#f_entity'); if(f_entityEl){ const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focus'].forEach(evt=> f_entityEl.addEventListener(evt,onEntityChange)); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
@@ -1176,10 +1436,10 @@ if (btn_duplicate) {
       if(!this._hass) return;
       const eid=getEntityId();
       const serviceStart=(f_service_sel.value||'').trim();
-      if(!serviceStart){ console.warn('Seleziona un servizio di inizio.'); return; }
+      if(!serviceStart){ console.warn(this._t('warnNoStartService')); return; }
 
       const slots=collectSlots();
-      if(!slots.length){ console.warn('Aggiungi almeno una fascia oraria valida (giorno + ora inizio).'); return; }
+      if(!slots.length){ console.warn(this._t('warnNoValidSlots')); return; }
 
       let picked=(f_color&&f_color.value)?String(f_color.value).toLowerCase():'';
       const initial=(f_color?.dataset?.initialHex||'').toLowerCase();
@@ -1273,7 +1533,7 @@ if (btn_duplicate) {
           this._renderTempBlocks(payload);
           setTimeout(()=> this._scheduleUpdate(), 200);
         } else {
-          console.error('ChronoTask: nessun servizio disponibile per salvare la regola.');
+          console.error(this._t('errNoServiceToSave'));
         }
       }catch(err){ console.error('ChronoTask save error:', err); }
 
@@ -1283,12 +1543,12 @@ if (btn_duplicate) {
     const btn_delete=content.querySelector('#btn_delete_text');
     const doDelete=async()=>{
       if(!existing) return;
-      const prevText=btn_delete.textContent; btn_delete.disabled=true; btn_delete.textContent='Eliminando…';
+      const prevText=btn_delete.textContent; btn_delete.disabled=true; btn_delete.textContent=this._t('deleting');
 
       const pid=getPlannerId();
       const idInfo=existing?.id??existing?.uid??(f_id.value||null);
       if(!idInfo){
-        console.warn('Nessun id/uid trovato per la regola; impossibile eliminare.');
+        console.warn(this._t('warnNoIdToDelete'));
         btn_delete.disabled=false; btn_delete.textContent=prevText; return;
       }
       const payload= pid ? { planner_id:pid, id:idInfo, rule_id:idInfo, uid:idInfo } : { id:idInfo, rule_id:idInfo, uid:idInfo };
@@ -1300,7 +1560,7 @@ if (btn_duplicate) {
         this._pendingEdits.delete(String(idInfo));
         await this._hass.callService('chronotask','remove_rule', payload);
       } catch(err){
-        console.error('Delete fallito (chronotask.remove_rule):',err);
+        console.error(this._t('errDeleteFailed'),err);
       } finally {
         btn_delete.disabled=false; btn_delete.textContent=prevText;
       }
@@ -1310,9 +1570,9 @@ if (btn_duplicate) {
     };
     if(btn_delete) btn_delete.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doDelete(); });
 
-    // Chiudi/Annulla sono già collegati in cima alla funzione (vedi
-    // doClose/btn_close_early/btn_cancel_early): qui resta solo Salva, la
-    // cui logica dipende da tutto il setup del form fatto nel frattempo.
+    // Annulla è già collegato in cima alla funzione (vedi
+    // doClose/btn_cancel_early): qui resta solo Salva, la cui logica
+    // dipende da tutto il setup del form fatto nel frattempo.
     const btn_save=content.querySelector('#btn_save');
     if(btn_save) btn_save.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doSave(); });
 
@@ -1333,7 +1593,7 @@ if (btn_duplicate) {
       const eid=getEntityId();
       _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
-    }catch(err){ console.error('ChronoTask: errore render campi action:',err); }
+    }catch(err){ console.error(this._t('errRenderActionFields'),err); }
   }
 }
 
@@ -1342,11 +1602,12 @@ class ChronoTaskWeeklyCardEditor extends HTMLElement{
   constructor(){ super(); this._config=undefined; this._dcTimer=null; this._rendered=false; }
   setConfig(config){ const incoming=config||{}; if(!this._config){ this._config=incoming; this._render(); this._rendered=true; return; } this._config=Object.assign({},this._config,incoming); this._applyConfigToUI(); }
   set hass(hass){ this._hass=hass; if(this._formTop) this._formTop.hass=hass; if(this._formBottom){ this._formBottom.hass=hass; this._refreshDomainSelectSchema(); } }
+  _t(key,...args){ return _ctT(this._hass,key,...args); }
   _emitConfigChanged(debounced=true){ const fire=()=> this.dispatchEvent(new CustomEvent('config-changed',{ detail:{ config:this._config } })); if(!debounced){ if(this._dcTimer){ clearTimeout(this._dcTimer); this._dcTimer=null; } fire(); return;} if(this._dcTimer) clearTimeout(this._dcTimer); this._dcTimer=setTimeout(()=>{ this._dcTimer=null; fire(); },400); }
   _uniqSorted(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).sort(); }
   _allDomains(){ if(!this._hass) return []; const fromStates=Object.keys(this._hass.states||{}).map(eid=> (typeof eid==='string' && eid.includes('.')) ? eid.split('.')[0] : null); const fromServices=Object.keys(this._hass.services||{}); return this._uniqSorted([...(fromStates||[]), ...(fromServices||[])]); }
   _domainOptions(){ return this._allDomains().map(d=>({ value:d, label:d })); }
-  _buildBottomSchema(){ const opts=this._domainOptions(); return [ { name:'entity_include_domains', selector:{ select:{ multiple:true, mode:'dropdown', options:opts } }, label:'Includi domini (autocomplete entità)' }, { name:'entity_exclude_domains', selector:{ select:{ multiple:true, mode:'dropdown', options:opts } }, label:'Escludi domini' }, ]; }
+  _buildBottomSchema(){ const opts=this._domainOptions(); return [ { name:'entity_include_domains', selector:{ select:{ multiple:true, mode:'dropdown', options:opts } }, label:this._t('includeDomains') }, { name:'entity_exclude_domains', selector:{ select:{ multiple:true, mode:'dropdown', options:opts } }, label:this._t('excludeDomains') }, ]; }
   _refreshDomainSelectSchema(){ if(!this._formBottom) return; const cur=this._formBottom.data||{}; const schema=this._buildBottomSchema(); this._formBottom.schema=schema; this._formBottom.data=Object.assign({},cur,this._config||{}); }
   _applyConfigToUI(){ if(this._formTop&&this._formTop.data){ this._formTop.data=Object.assign({},this._formTop.data,this._config);} if(this._formBottom&&this._formBottom.data){ this._formBottom.data=Object.assign({},this._formBottom.data,this._config);} const picker=this.shadowRoot?.querySelector('#apw_default_color'); const txt=this.shadowRoot?.querySelector('#apw_default_color_text'); if(picker||txt){ const hex=_toHexFromAny(this._config?.default_color||'#5a8e62','#5a8e62'); if(picker && picker.value?.toLowerCase()!==hex) picker.value=hex; if(txt && txt.value?.toLowerCase()!==hex) txt.value=hex; } this._refreshDomainSelectSchema(); }
   _render(){
@@ -1358,11 +1619,11 @@ class ChronoTaskWeeklyCardEditor extends HTMLElement{
     this._config=initialData;
 
     if(customElements.get('ha-form')){
-      const schemaTop=[ { name:'title', selector:{ text:{} }, label:'Titolo', optional:true },
-        { name:'rules_entity', selector:{ entity:{ domain:'sensor', include_domains:['sensor'], exclude_domains:['calendar'], integration:'chronotask' } }, label:'Entità (ChronoTask)', optional:true },
-        { name:'start_hour', selector:{ time:{ show_seconds:false } }, label:'Ora inizio', optional:true },
-        { name:'end_hour', selector:{ time:{ show_seconds:false } }, label:'Ora fine', optional:true },
-        { name:'slot_minutes', selector:{ select:{ mode:'dropdown', options:[{value:'15',label:'15 min'},{value:'30',label:'30 min'},{value:'45',label:'45 min'},{value:'60',label:'1 h'}] } }, label:'Intervallo slot', optional:true },
+      const schemaTop=[ { name:'title', selector:{ text:{} }, label:this._t('title'), optional:true },
+        { name:'rules_entity', selector:{ entity:{ domain:'sensor', include_domains:['sensor'], exclude_domains:['calendar'], integration:'chronotask' } }, label:this._t('entityCT'), optional:true },
+        { name:'start_hour', selector:{ time:{ show_seconds:false } }, label:this._t('startHour'), optional:true },
+        { name:'end_hour', selector:{ time:{ show_seconds:false } }, label:this._t('endHour'), optional:true },
+        { name:'slot_minutes', selector:{ select:{ mode:'dropdown', options:[{value:'15',label:this._t('min15')},{value:'30',label:this._t('min30')},{value:'45',label:this._t('min45')},{value:'60',label:this._t('h1')}] } }, label:this._t('slotInterval'), optional:true },
       ];
       const formTop=document.createElement('ha-form');
       formTop.schema=schemaTop; formTop.data=initialData; formTop.hass=this._hass;
@@ -1375,10 +1636,10 @@ class ChronoTaskWeeklyCardEditor extends HTMLElement{
 
       const colorRow=document.createElement('div');
       colorRow.className='row';
-      colorRow.innerHTML=`<label for="apw_default_color">Colore predefinito</label>
+      colorRow.innerHTML=`<label for="apw_default_color">${this._t('defaultColor')}</label>
         <div class="inline">
           <input id="apw_default_color" type="color" class="full" />
-          <input id="apw_default_color_text" type="text" class="full" placeholder="HEX o nome colore (es. red)" style="max-width:220px;border:1px solid var(--divider-color);border-radius:6px;padding:6px 8px;min-height:36px">
+          <input id="apw_default_color_text" type="text" class="full" placeholder="${this._t('hexOrName')}" style="max-width:220px;border:1px solid var(--divider-color);border-radius:6px;padding:6px 8px;min-height:36px">
         </div>`;
       wrap.appendChild(colorRow);
       const picker=colorRow.querySelector('#apw_default_color'); const txt=colorRow.querySelector('#apw_default_color_text');
@@ -1403,14 +1664,14 @@ class ChronoTaskWeeklyCardEditor extends HTMLElement{
       setTimeout(()=> this._refreshDomainSelectSchema(),0);
     } else {
       const mkRow=(label,id,placeholder='',type='text')=>{ const d=document.createElement('div'); d.className='row'; d.innerHTML=`<label for="${id}">${label}</label><input id="${id}" placeholder="${placeholder}" style="width:100%" type="${type}">`; return d; };
-      const title=mkRow('Titolo','f_title','Programmazione settimanale (ricorrente)'); wrap.appendChild(title);
+      const title=mkRow(this._t('title'),'f_title',this._t('defaultTitle')); wrap.appendChild(title);
 
       const colorRow=document.createElement('div');
       colorRow.className='row';
-      colorRow.innerHTML=`<label for="apw_default_color">Colore predefinito</label>
+      colorRow.innerHTML=`<label for="apw_default_color">${this._t('defaultColor')}</label>
         <div class="inline">
           <input id="apw_default_color" type="color">
-          <input id="apw_default_color_text" type="text" placeholder="HEX o nome colore (es. red)" style="max-width:220px;border:1px solid var(--divider-color);border-radius:6px;padding:6px 8px;">
+          <input id="apw_default_color_text" type="text" placeholder="${this._t('hexOrName')}" style="max-width:220px;border:1px solid var(--divider-color);border-radius:6px;padding:6px 8px;">
         </div>`;
       wrap.appendChild(colorRow);
       const picker=colorRow.querySelector('#apw_default_color'); const txt=colorRow.querySelector('#apw_default_color_text');
@@ -1442,7 +1703,7 @@ try{
     window.customCards.push({
       type:'chronotask-weekly-card',
       name:'ChronoTask Weekly',
-      description:'Planner settimanale ricorrente',
+      description:'Recurring weekly planner',
       preview:true,
       documentationURL:'https://github.com/andker87/Home-Assistant-ChronoTask'
     });
