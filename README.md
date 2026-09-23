@@ -97,6 +97,7 @@ ChronoTask provides:
 - 🖥 **Weekly Card** with calendar-style layout
 - 🗂 **Tag Manager Card** for bulk operations
 - 📱 **Mobile-friendly UI** (scrolling, adaptive layout, readable)
+- 🌍 **Multi-language UI** — Italian, English, French, German, Spanish, Chinese (auto-detected from Home Assistant, English fallback)
 
 
 ![ChronoTask_2](https://github.com/user-attachments/assets/0f7e469a-06fe-4eff-8d6b-91bcf57c0a5f)
@@ -230,7 +231,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 ### Longer term
 
 - 📊 Daily / compact view — agenda-style card, useful on mobile dashboards
-- 🌍 Full multi-language UI — card text currently hardcoded in Italian
 - 🔀 Drag & drop rescheduling — move a block directly from the planner card
 - 💾 Export / import rules — backup, restore, and share configurations between HA instances
 - 🔔 Trigger notifications — optional HA notification on every rule execution
