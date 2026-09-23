@@ -845,15 +845,15 @@ async _setAllEnabled(enabled){
     const content=document.createElement('div'); content.classList.add('apw-root'); content.style.minWidth='360px'; content.style.maxWidth='92vw';
     const dialogTitleText= existing ? this._t('editRule') : (prefill ? this._t('newRuleDup') : this._t('newRule'));
 
-    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:0 0 8px}.dialog-header-side{display:flex;align-items:center;gap:4px}.dialog-header-left{justify-self:start}.dialog-header-right{justify-self:end}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}</style>
+    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:0 0 8px}.dialog-header-side{display:flex;align-items:center;gap:4px}.dialog-header-left{justify-self:start}.dialog-header-right{justify-self:end}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}.text-btn{display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--primary-color);font-family:inherit}.text-btn:hover{background:var(--divider-color)}.text-btn:active{transform:translateY(1px)}.text-btn.danger{color:var(--error-color,#b00020)}.text-btn:disabled{opacity:.5;cursor:default}</style>
       <div class="dialog-header">
         <div class="dialog-header-side dialog-header-left">
           <button type="button" class="icon-btn" id="btn_close" aria-label="${this._t('closeAria')}">✕</button>
         </div>
         <div class="dialog-title" id="dlg_title">${dialogTitleText}</div>
         <div class="dialog-header-side dialog-header-right">
-          <mwc-button id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">${this._t('duplicate')}</mwc-button>
-          <mwc-button id="btn_delete_text" class="danger" style="${existing?'':'visibility:hidden'}">${this._t('delete')}</mwc-button>
+          <button type="button" class="text-btn" id="btn_duplicate_text" style="${existing?'':'visibility:hidden'}">${this._t('duplicate')}</button>
+          <button type="button" class="text-btn danger" id="btn_delete_text" style="${existing?'':'visibility:hidden'}">${this._t('delete')}</button>
         </div>
       </div>
       <input type="hidden" id="f_id" />
@@ -886,7 +886,7 @@ async _setAllEnabled(enabled){
 
         <div class="section"><div class="section-title">${this._t('timeSlots')}</div>
           <div id="slots_wrap"></div>
-          <div class="form-row" style="text-align:right"><mwc-button id="btn_add_slot" type="button">${this._t('addSlot')}</mwc-button></div>
+          <div class="form-row" style="text-align:right"><button type="button" class="text-btn" id="btn_add_slot">${this._t('addSlot')}</button></div>
         </div>
 
         <div class="section"><div class="section-title">${this._t('actionStart')}</div>
@@ -899,7 +899,7 @@ async _setAllEnabled(enabled){
           <div id="svc_fields_end"></div>
         </div>
       </div>
-      <div class="footer3"><mwc-button id="btn_cancel">${this._t('cancel')}</mwc-button><mwc-button id="btn_save">${this._t('save')}</mwc-button></div>`;
+      <div class="footer3"><button type="button" class="text-btn" id="btn_cancel">${this._t('cancel')}</button><button type="button" class="text-btn" id="btn_save">${this._t('save')}</button></div>`;
 
     dlg.appendChild(content); document.body.appendChild(dlg);
 
