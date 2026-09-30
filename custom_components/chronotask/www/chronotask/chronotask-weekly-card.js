@@ -663,7 +663,7 @@ _ensureLayout(){
     });
   }
 
-  _decorateBlock(block,rule,cont){
+  _decorateBlock(block,rule,cont,segDay){
     const color=_normalizeHex(rule.color||rule.ui_color||this._config.default_color,this._config.default_color);
     block.style.background=color; block.style.borderColor=_darkenHex(color,25); block.style.color=_idealTextColor(color);
     block.innerHTML='';
@@ -678,7 +678,7 @@ _ensureLayout(){
     if(cont){
       const toMin=t=>{ const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+(m||0); };
       const ed=this._effEndDay(block.dataset.day,rule.end_day,toMin(startStr),toMin(endStr));
-      block.dataset.cont='1'; block.dataset.srcDay=block.dataset.day; block.dataset.day=String(ed); block.dataset.endDay=String(ed);
+      block.dataset.cont=cont; block.dataset.srcDay=block.dataset.day; block.dataset.day=String(segDay); block.dataset.endDay=String(ed);
       block.title=`${label} — ${startStr} → ${endStr}`;
     }
     const geom=this._computeGeom({...rule,day:cont?Number(block.dataset.srcDay):rule.day,end_day:cont?block.dataset.endDay:rule.end_day},cont);
@@ -718,6 +718,7 @@ _ensureLayout(){
     const gridBottom=headerPx+((this._toHour(this._config.end_hour,22)*60-startMinBaseline)/slotMin)*rowPx;
     // Fascia a cavallo di mezzanotte: il blocco del giorno di inizio arriva
     // a fondo griglia, la continuazione parte dall'alto del giorno dopo.
+    if(cont==='mid') return {top:headerPx,height:Math.max(20,gridBottom-headerPx)};
     if(cont){
       const h=((endAbsMin-startMinBaseline)/slotMin)*rowPx;
       return {top:headerPx,height:Math.max(20,Math.min(h,gridBottom-headerPx))};
@@ -734,7 +735,7 @@ _ensureLayout(){
     const startHour=this._toHour(this._config.start_hour,6); const slotMin=this._getSlotMinutes(); const startMinBaseline=startHour*60;
     overlay.querySelectorAll('.rule').forEach(block=>{
       const day=Number(block.dataset.day??-1);
-      const cont=block.dataset.cont==='1';
+      const cont=block.dataset.cont||'';
       const startStr=String(block.dataset.start||'00:00'); const endStr=String(block.dataset.end||startStr);
       const {top,height}=this._computeGeom({day:cont?Number(block.dataset.srcDay):day,start:startStr,end:endStr,end_day:block.dataset.endDay},cont);
       block.style.top=`${top}px`; block.style.height=`${height}px`;
@@ -747,25 +748,32 @@ _ensureLayout(){
     });
   }
 
-  // Fascia overnight: crea/aggiorna/rimuove il blocco "continuazione" nella
-  // colonna del giorno di fine (dall'alto della griglia fino all'ora di fine).
+  // Fascia a cavallo di giorni: un blocco "continuazione" per ogni giorno dopo
+  // quello di inizio. I giorni intermedi sono a tutta altezza, l'ultimo va
+  // dall'alto della griglia all'ora di fine. I blocchi non più necessari
+  // (fascia accorciata) vengono rimossi dalla pulizia degli orfani.
   _syncContBlock(block,sv,uid,rule,seenUids,existingBlocks){
-    const cuid=uid+'#cont';
-    let cont=existingBlocks.get(cuid);
     const toMin=t=>{ const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+(m||0); };
     const day=Number(sv.day??sv.weekday);
     const endDay=sv.end?this._effEndDay(day,sv.end_day,toMin(sv.start),toMin(sv.end)):day;
+    const span=(endDay-day+7)%7;
     const baseline=this._toHour(this._config.start_hour,6)*60;
-    if(!sv.end||endDay===day||toMin(sv.end)<=baseline){ if(cont) cont.remove(); return; }
-    seenUids.add(cuid);
-    const col=this._ensureDayColumn(endDay); if(!col) return;
-    if(!cont){
-      cont=document.createElement('div'); cont.className='rule cont'; cont.dataset.uid=cuid;
-      cont.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); requestAnimationFrame(()=> this._openDialogFresh(rule, cont)); });
+    for(let i=1;i<=span;i++){
+      const last=(i===span);
+      if(last&&toMin(sv.end)<=baseline) break;
+      const cuid=uid+'#cont'+i;
+      seenUids.add(cuid);
+      const segDay=(day+i)%7;
+      const col=this._ensureDayColumn(segDay); if(!col) continue;
+      let cont=existingBlocks.get(cuid);
+      if(!cont){
+        cont=document.createElement('div'); cont.className='rule cont'; cont.dataset.uid=cuid;
+        cont.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); requestAnimationFrame(()=> this._openDialogFresh(rule, cont)); });
+      }
+      if(cont.parentNode!==col) col.appendChild(cont);
+      if(block.dataset.realId!=null) cont.dataset.realId=block.dataset.realId;
+      this._decorateBlock(cont,sv,last?'end':'mid',segDay);
     }
-    if(cont.parentNode!==col) col.appendChild(cont);
-    if(block.dataset.realId!=null) cont.dataset.realId=block.dataset.realId;
-    this._decorateBlock(cont,sv,true);
   }
 
   _findRuleBlockByUid(uid){ if(!uid) return null; try{ return this._els?.overlay?.querySelector(`.rule[data-uid="${_cssEscape(String(uid))}"]`)||null; }catch(_){ return null; } }
