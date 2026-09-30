@@ -1220,20 +1220,15 @@ async _setAllEnabled(enabled){
     const getIconValue=()=> (icon_picker? this._sanitizeIcon(icon_picker.value): this._sanitizeIcon(f_icon?.value||''));
     const setIconValue=(val)=>{ const v=this._sanitizeIcon(val); if(icon_picker) icon_picker.value=v; else if(f_icon) f_icon.value=v; };
 
-    // Entity picker: sempre il campo di testo semplice + suggerimenti.
-    // ha-entity-picker è stato provato in precedenza, ma nei contesti dove
-    // un wrapper come Bubble Card passa alle card che incapsula un oggetto
-    // hass ridotto, il suo rendering interno fallisce (crash asincrono su
-    // hass.localize, non intercettabile in modo pulito da qui) lasciando
-    // uno shadow root vuoto. Piuttosto che rincorrere ogni suo modo di
-    // fallire silenziosamente, usiamo direttamente l'unica versione che si
-    // è dimostrata affidabile ovunque: non dipende da nient'altro oltre a
-    // hass.states, che la card usa già per tutto il resto.
+    // Entity picker: selettore nativo di HA (ricerca, nome, icona). Se non è
+    // disponibile, se la creazione fallisce o se dopo un istante il suo shadow
+    // DOM risulta vuoto (rendering fallito), si ripiega sul campo di testo con
+    // suggerimenti, che dipende solo da hass.states.
     let f_entity;
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
-    {
+    const buildPlainEntityInput=()=>{
       const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder=this._t('entityPlaceholder'); inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
       const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
       const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
@@ -1243,7 +1238,37 @@ async _setAllEnabled(enabled){
       rebuild('');
       let t=null; const onType=()=>{ clearTimeout(t); t=setTimeout(()=>rebuild(inp.value||''),60); };
       ['input','change','keyup','focus'].forEach(evt=> inp.addEventListener(evt,onType));
-      row_entity.appendChild(inp); row_entity.appendChild(dl); f_entity=inp;
+      row_entity.appendChild(inp); row_entity.appendChild(dl);
+      return inp;
+    };
+    if(customElements.get('ha-entity-picker')){
+      try{
+        const pk=document.createElement('ha-entity-picker');
+        pk.id='f_entity'; pk.hass=this._hass; pk.label=this._t('entityPlaceholder'); pk.value='';
+        pk.allowCustomEntity=true;
+        if(includeDomains) pk.includeDomains=includeDomains;
+        if(excludeDomains) pk.excludeDomains=excludeDomains;
+        pk.style.cssText='display:block;width:100%';
+        pk.addEventListener('value-changed',ev=>{ if(ev.detail&&ev.detail.value!==undefined) pk.value=ev.detail.value||''; });
+        row_entity.appendChild(pk); f_entity=pk;
+        setTimeout(()=>{
+          try{
+            if(!pk.isConnected) return;
+            const sr=pk.shadowRoot;
+            if(sr && sr.childElementCount) return;
+            const v=pk.value||''; pk.remove();
+            const inp=buildPlainEntityInput(); inp.value=v; f_entity=inp;
+            // i listener del dialog sono registrati sul picker ormai staccato:
+            // rigira gli eventi del nuovo campo verso di lui.
+            ['input','change','focus'].forEach(evt=> inp.addEventListener(evt,()=>pk.dispatchEvent(new Event(evt))));
+          }catch(_){ }
+        },800);
+      }catch(err){
+        console.error(err);
+        f_entity=buildPlainEntityInput();
+      }
+    } else {
+      f_entity=buildPlainEntityInput();
     }
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
