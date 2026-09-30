@@ -14,6 +14,7 @@ except Exception:  # noqa: BLE001
 
 # URL base pubblico
 URL_BASE = "/local/chronotask"
+FRONTEND_FILES = ("chronotask-weekly-card.js", "chronotask-tag-manager.js")
 
 DOMAIN = "chronotask"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
