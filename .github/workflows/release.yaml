@@ -1,0 +1,60 @@
+name: Release
+
+# Avvio manuale: crea tag annotato + GitHub release per la versione indicata.
+# Va lanciato sul branch giusto (beta per le -betaN, main per le stabili).
+# Le note vengono lette da .github/release-notes/<versione>.md (solo inglese).
+# Se il secret RELEASE_TOKEN (PAT) è definito, tag e release risultano a nome
+# dell'utente del token; altrimenti usa GITHUB_TOKEN (github-actions[bot]).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versione senza 'v' (es. 1.4.0-beta1 oppure 1.4.0)"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+      - name: hassfest
+        uses: home-assistant/actions/hassfest@master
+
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - name: Check manifest and notes
+        run: |
+          set -euo pipefail
+          manifest=$(python3 -c "import json;print(json.load(open('custom_components/chronotask/manifest.json'))['version'])")
+          [ "$manifest" = "$VERSION" ] || { echo "manifest.json ha versione $manifest, atteso $VERSION"; exit 1; }
+          [ -s ".github/release-notes/$VERSION.md" ] || { echo "Mancano le note .github/release-notes/$VERSION.md"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then echo "Il tag v$VERSION esiste già"; exit 1; fi
+      - name: Tag and release
+        run: |
+          set -euo pipefail
+          git config user.name "andker87"
+          git config user.email "49446412+andker87@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "refs/tags/v$VERSION"
+          flags=()
+          case "$VERSION" in *-*) flags+=(--prerelease);; esac
+          gh release create "v$VERSION" --verify-tag --title "v$VERSION" \
+            --notes-file ".github/release-notes/$VERSION.md" "${flags[@]}"
