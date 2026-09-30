@@ -27,6 +27,22 @@ def slot_from_flat(rule: dict[str, Any]) -> dict[str, Any]:
     return slot
 
 
+def effective_end_day(day: int, start: str | None, end: str | None,
+                      end_day: int | None = None) -> int:
+    """Giorno in cui scatta l'azione di fine di una fascia.
+
+    Se end_day è esplicito vince sempre. Altrimenti una fascia con fine
+    strettamente precedente all'inizio (es. 22:00 -> 06:00) è "overnight":
+    la fine cade il giorno dopo. In tutti gli altri casi è lo stesso giorno.
+    Le stringhe HH:MM si confrontano correttamente in ordine lessicografico.
+    """
+    if end_day is not None and end_day != "":
+        return int(end_day) % 7
+    if end and start and str(end)[:5] < str(start)[:5]:
+        return (int(day) + 1) % 7
+    return int(day)
+
+
 def iter_slots(rule: dict[str, Any]) -> list[dict[str, Any]]:
     """Restituisce gli slot di una regola: rule[CONF_SLOTS] se presente e non
     vuoto, altrimenti un singolo slot ricavato dai campi flat (fallback

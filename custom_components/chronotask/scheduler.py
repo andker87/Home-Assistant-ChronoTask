@@ -19,7 +19,7 @@ from .const import (
     CONF_END_SERVICE,
     CONF_END_SERVICE_DATA,
 )
-from .slots import expand_rules
+from .slots import effective_end_day, expand_rules
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +98,9 @@ class WeeklyScheduler:
 
         rule_id = rule.get(ATTR_ID)
         slot_idx = rule.get("_slot_index", 0)
-        end_day = int(rule.get(CONF_END_DAY, rule.get(CONF_DAY)))
+        end_day = effective_end_day(
+            rule[CONF_DAY], rule.get(CONF_START), rule[CONF_END], rule.get(CONF_END_DAY)
+        )
         key = f"{rule_id}:{slot_idx}:end"
         next_local = self._next_local_dt(end_day, rule[CONF_END])
         if not next_local:

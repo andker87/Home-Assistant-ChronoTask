@@ -222,7 +222,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### On the roadmap
 
-- 🌙 Overnight rules — correctly handle schedules that start on one day and end on the next
 - 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
 - ⚡ Execution conditions — run a rule only if a specific HA entity is in a given state
 - 🔁 Non-weekly recurrence — support for "every N days" or "first Monday of the month"
