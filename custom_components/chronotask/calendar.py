@@ -20,7 +20,7 @@ from .const import (
     ATTR_ID,
     CONF_END_DAY,
 )
-from .slots import expand_rules
+from .slots import effective_end_day, expand_rules
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +50,9 @@ def _build_event(rule: dict, base_date, now) -> CalendarEvent | None:
             if end_hm:
                 eh, em = end_hm
                 wd = base_date.weekday()
-                eday = int(rule.get(CONF_END_DAY, rule[CONF_DAY]))
+                eday = effective_end_day(
+                    rule[CONF_DAY], rule.get(CONF_START), rule[CONF_END], rule.get(CONF_END_DAY)
+                )
                 delta_days = (eday - wd) % 7
                 end = (base_date + timedelta(days=delta_days)).replace(
                     hour=eh, minute=em, second=0, microsecond=0
