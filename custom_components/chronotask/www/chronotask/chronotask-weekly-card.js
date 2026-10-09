@@ -1220,72 +1220,69 @@ async _setAllEnabled(enabled){
     const getIconValue=()=> (icon_picker? this._sanitizeIcon(icon_picker.value): this._sanitizeIcon(f_icon?.value||''));
     const setIconValue=(val)=>{ const v=this._sanitizeIcon(val); if(icon_picker) icon_picker.value=v; else if(f_icon) f_icon.value=v; };
 
-    // Entity picker: selettore nativo di HA (ricerca, nome, icona). Se non è
-    // disponibile, se la creazione fallisce o se dopo un istante il suo shadow
-    // DOM risulta vuoto (rendering fallito), si ripiega sul campo di testo con
-    // suggerimenti, che dipende solo da hass.states.
+    // Entity picker: campo con ricerca ed elenco a tendina costruito a mano
+    // (icona, nome, id). Non usa ha-entity-picker: i componenti interni di HA
+    // cambiano tra le versioni e in certi contesti non si disegnano; questo
+    // dipende solo da hass.states, quindi funziona uguale per tutti.
     let f_entity;
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
     const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
-    const buildPlainEntityInput=()=>{
-      const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder=this._t('entityPlaceholder'); inp.autocomplete='off'; inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
-      const dl=document.createElement('datalist'); const dlId='entity_suggestions_'+Math.random().toString(36).slice(2); dl.id=dlId; inp.setAttribute('list',dlId);
-      const all=Object.keys(this._hass?.states||{}).map(eid=>({eid,st:this._hass.states[eid]})).filter(({eid})=>{
+    const DOMAIN_ICONS={light:'mdi:lightbulb',switch:'mdi:toggle-switch',climate:'mdi:thermostat',sensor:'mdi:eye',binary_sensor:'mdi:checkbox-blank-circle-outline',cover:'mdi:window-shutter',fan:'mdi:fan',media_player:'mdi:cast',input_boolean:'mdi:toggle-switch-outline',input_number:'mdi:ray-vertex',input_select:'mdi:format-list-bulleted',scene:'mdi:palette',script:'mdi:script-text',automation:'mdi:robot',lock:'mdi:lock',vacuum:'mdi:robot-vacuum',water_heater:'mdi:water-boiler',humidifier:'mdi:air-humidifier',button:'mdi:gesture-tap-button',number:'mdi:ray-vertex',select:'mdi:format-list-bulleted',valve:'mdi:valve',siren:'mdi:bullhorn'};
+    const buildEntityCombo=()=>{
+      const all=Object.keys(this._hass?.states||{}).filter(eid=>{
         const dom=eid.split('.')[0]; if(includeDomains && !includeDomains.includes(dom)) return false; if(excludeDomains && excludeDomains.includes(dom)) return false; return true;
+      }).map(eid=>{
+        const at=this._hass.states[eid]?.attributes||{}; const name=at.friendly_name||'';
+        return {eid,name,icon:at.icon||DOMAIN_ICONS[eid.split('.')[0]]||'mdi:shape-outline',hay:(eid+' '+name).toLowerCase()};
+      }).sort((x,y)=>(x.name||x.eid).localeCompare(y.name||y.eid));
+
+      const wrap=document.createElement('div'); wrap.style.cssText='position:relative;width:100%';
+      const inp=document.createElement('input'); inp.id='f_entity'; inp.placeholder=this._t('entityPlaceholder'); inp.autocomplete='off'; inp.spellcheck=false;
+      inp.setAttribute('role','combobox'); inp.style.cssText='width:100%;box-sizing:border-box;min-height:40px';
+      const list=document.createElement('div'); list.setAttribute('role','listbox');
+      list.style.cssText='display:none;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:260px;overflow-y:auto;margin-top:2px;background:var(--card-background-color,#fff);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.28)';
+      let items=[], active=-1;
+      const isOpen=()=> list.style.display!=='none';
+      const close=()=>{ list.style.display='none'; };
+      const paint=()=>{ Array.from(list.children).forEach((row,i)=>{ row.style.background=(i===active)?'var(--secondary-background-color,rgba(127,127,127,.2))':'transparent'; if(i===active) row.scrollIntoView({block:'nearest'}); }); };
+      const pick=(i)=>{ const it=items[i]; if(!it) return; inp.value=it.eid; close(); inp.dispatchEvent(new Event('change',{bubbles:true})); };
+      const open=()=>{
+        const toks=(inp.value||'').toLowerCase().split(/\s+/).filter(Boolean);
+        items=all.filter(e=>toks.every(t=>e.hay.includes(t))).slice(0,80); active=items.length?0:-1;
+        list.innerHTML='';
+        items.forEach((e,i)=>{
+          const row=document.createElement('div'); row.setAttribute('role','option');
+          row.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:pointer';
+          const ic=document.createElement('ha-icon'); ic.setAttribute('icon',e.icon); ic.style.cssText='--mdc-icon-size:20px;flex:none;color:var(--secondary-text-color)';
+          const txt=document.createElement('div'); txt.style.cssText='min-width:0;flex:1';
+          const n=document.createElement('div'); n.textContent=e.name||e.eid; n.style.cssText='white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+          txt.appendChild(n);
+          if(e.name){ const id=document.createElement('div'); id.textContent=e.eid; id.style.cssText='font-size:.8em;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'; txt.appendChild(id); }
+          row.appendChild(ic); row.appendChild(txt);
+          row.addEventListener('mousedown',ev=>{ ev.preventDefault(); pick(i); });
+          row.addEventListener('mousemove',()=>{ if(active!==i){ active=i; paint(); } });
+          list.appendChild(row);
+        });
+        list.style.display=items.length?'block':'none'; paint();
+      };
+      inp.addEventListener('focus',open);
+      inp.addEventListener('input',open);
+      inp.addEventListener('blur',()=> setTimeout(close,120));
+      inp.addEventListener('keydown',ev=>{
+        if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){
+          ev.preventDefault(); if(!isOpen()){ open(); return; }
+          if(items.length){ active=(active+(ev.key==='ArrowDown'?1:-1)+items.length)%items.length; paint(); }
+        } else if(ev.key==='Enter'){
+          if(isOpen() && active>=0){ ev.preventDefault(); ev.stopPropagation(); pick(active); }
+        } else if(ev.key==='Escape'){
+          if(isOpen()){ ev.preventDefault(); ev.stopPropagation(); close(); }
+        }
       });
-      const rebuild=(q='')=>{ const filter=makeFilterFn(q); dl.innerHTML=''; let count=0; for(const {eid,st} of all){ if(!filter(eid,st)) continue; const opt=document.createElement('option'); opt.value=eid; opt.label=(st?.attributes?.friendly_name)||eid; dl.appendChild(opt); if(++count>=150) break; } };
-      rebuild('');
-      let t=null; const onType=()=>{ clearTimeout(t); t=setTimeout(()=>rebuild(inp.value||''),60); };
-      ['input','change','keyup','focus'].forEach(evt=> inp.addEventListener(evt,onType));
-      row_entity.appendChild(inp); row_entity.appendChild(dl);
+      wrap.appendChild(inp); wrap.appendChild(list); row_entity.appendChild(wrap);
       return inp;
     };
-    // ha-entity-picker viene caricato da HA solo quando una sua schermata lo
-    // richiede: se non è ancora definito si parte col campo di testo e, appena
-    // il picker è disponibile, lo si sostituisce (valore compreso).
-    const currentEntityEl=()=> row_entity.querySelector('#f_entity');
-    const useNativePicker=()=>{
-      try{
-        if(!row_entity.isConnected) return false;
-        const cur=currentEntityEl();
-        if(cur && cur.tagName==='HA-ENTITY-PICKER') return true;
-        const pk=document.createElement('ha-entity-picker');
-        pk.id='f_entity'; pk.hass=this._hass; pk.label=this._t('entityPlaceholder'); pk.value=cur?(cur.value||''):'';
-        pk.allowCustomEntity=true;
-        if(includeDomains) pk.includeDomains=includeDomains;
-        if(excludeDomains) pk.excludeDomains=excludeDomains;
-        pk.style.cssText='display:block;width:100%';
-        pk.addEventListener('value-changed',ev=>{ if(ev.detail&&ev.detail.value!==undefined) pk.value=ev.detail.value||''; });
-        if(cur){ cur.list&&cur.list.remove(); cur.remove(); }
-        row_entity.appendChild(pk); f_entity=pk;
-        // Se il picker non si disegna (shadow DOM vuoto), torna al campo di testo.
-        setTimeout(()=>{
-          try{
-            if(!pk.isConnected) return;
-            const sr=pk.shadowRoot; if(sr && sr.childElementCount) return;
-            const v=pk.value||''; pk.remove();
-            const inp=buildPlainEntityInput(); inp.value=v; f_entity=inp;
-            inp.dispatchEvent(new Event('change',{bubbles:true}));
-          }catch(_){ }
-        },800);
-        return true;
-      }catch(err){ console.error(err); return false; }
-    };
-    const ensureEntityPicker=async()=>{
-      if(customElements.get('ha-entity-picker')) return true;
-      try{
-        const ch=await window.loadCardHelpers?.();
-        if(ch){ const c=await ch.createCardElement({type:'entities',entities:[]}); await c?.constructor?.getConfigElement?.(); }
-      }catch(_){ }
-      try{
-        await Promise.race([customElements.whenDefined('ha-entity-picker'),new Promise((_,rej)=>setTimeout(rej,2500))]);
-        return true;
-      }catch(_){ return false; }
-    };
-    f_entity=buildPlainEntityInput();
-    if(customElements.get('ha-entity-picker')){ useNativePicker(); }
-    else { ensureEntityPicker().then(ok=>{ if(ok) useNativePicker(); }); }
+    f_entity=buildEntityCombo();
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
 // Prefill existing
