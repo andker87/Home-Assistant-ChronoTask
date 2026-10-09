@@ -1241,35 +1241,51 @@ async _setAllEnabled(enabled){
       row_entity.appendChild(inp); row_entity.appendChild(dl);
       return inp;
     };
-    if(customElements.get('ha-entity-picker')){
+    // ha-entity-picker viene caricato da HA solo quando una sua schermata lo
+    // richiede: se non è ancora definito si parte col campo di testo e, appena
+    // il picker è disponibile, lo si sostituisce (valore compreso).
+    const currentEntityEl=()=> row_entity.querySelector('#f_entity');
+    const useNativePicker=()=>{
       try{
+        if(!row_entity.isConnected) return false;
+        const cur=currentEntityEl();
+        if(cur && cur.tagName==='HA-ENTITY-PICKER') return true;
         const pk=document.createElement('ha-entity-picker');
-        pk.id='f_entity'; pk.hass=this._hass; pk.label=this._t('entityPlaceholder'); pk.value='';
+        pk.id='f_entity'; pk.hass=this._hass; pk.label=this._t('entityPlaceholder'); pk.value=cur?(cur.value||''):'';
         pk.allowCustomEntity=true;
         if(includeDomains) pk.includeDomains=includeDomains;
         if(excludeDomains) pk.excludeDomains=excludeDomains;
         pk.style.cssText='display:block;width:100%';
         pk.addEventListener('value-changed',ev=>{ if(ev.detail&&ev.detail.value!==undefined) pk.value=ev.detail.value||''; });
+        if(cur){ cur.list&&cur.list.remove(); cur.remove(); }
         row_entity.appendChild(pk); f_entity=pk;
+        // Se il picker non si disegna (shadow DOM vuoto), torna al campo di testo.
         setTimeout(()=>{
           try{
             if(!pk.isConnected) return;
-            const sr=pk.shadowRoot;
-            if(sr && sr.childElementCount) return;
+            const sr=pk.shadowRoot; if(sr && sr.childElementCount) return;
             const v=pk.value||''; pk.remove();
             const inp=buildPlainEntityInput(); inp.value=v; f_entity=inp;
-            // i listener del dialog sono registrati sul picker ormai staccato:
-            // rigira gli eventi del nuovo campo verso di lui.
-            ['input','change','focus'].forEach(evt=> inp.addEventListener(evt,()=>pk.dispatchEvent(new Event(evt))));
+            inp.dispatchEvent(new Event('change',{bubbles:true}));
           }catch(_){ }
         },800);
-      }catch(err){
-        console.error(err);
-        f_entity=buildPlainEntityInput();
-      }
-    } else {
-      f_entity=buildPlainEntityInput();
-    }
+        return true;
+      }catch(err){ console.error(err); return false; }
+    };
+    const ensureEntityPicker=async()=>{
+      if(customElements.get('ha-entity-picker')) return true;
+      try{
+        const ch=await window.loadCardHelpers?.();
+        if(ch){ const c=await ch.createCardElement({type:'entities',entities:[]}); await c?.constructor?.getConfigElement?.(); }
+      }catch(_){ }
+      try{
+        await Promise.race([customElements.whenDefined('ha-entity-picker'),new Promise((_,rej)=>setTimeout(rej,2500))]);
+        return true;
+      }catch(_){ return false; }
+    };
+    f_entity=buildPlainEntityInput();
+    if(customElements.get('ha-entity-picker')){ useNativePicker(); }
+    else { ensureEntityPicker().then(ok=>{ if(ok) useNativePicker(); }); }
     const getEntityId=()=> (row_entity.querySelector('#f_entity')?.value||'').trim();
 
 // Prefill existing
@@ -1442,7 +1458,7 @@ if (prefill && !existing) {
     };
 
     try{ refreshServiceSelects(); }catch(err){ console.error(this._t('errActionSelectorInit'),err); }
-    const f_entityEl=row_entity.querySelector('#f_entity'); if(f_entityEl){ const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focus'].forEach(evt=> f_entityEl.addEventListener(evt,onEntityChange)); }
+    { const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focusin'].forEach(evt=> row_entity.addEventListener(evt,onEntityChange)); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
 
