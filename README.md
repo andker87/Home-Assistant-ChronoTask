@@ -14,7 +14,7 @@ ChronoTask is a Home Assistant integration that lets you create, visualize and m
 - [The honest story behind the project](#-the-honest-story-behind-the-project)
 - [Features](#-features)
 - [Project components](#-project-components)
-- [Intallation](#-installation)
+- [Installation](#-installation)
 - [Contributing](#-contributing)
 
 ---
@@ -91,6 +91,8 @@ ChronoTask provides:
 - 📅 **Weekly planner** with configurable time slots
 - 🧩 **Recurring rules** with optional start / end
 - 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
+- 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
+- 🔎 **Searchable entity picker** — find an entity by name or id, with icon and friendly name
 - 🎨 **Colors and icons** for quick visual recognition
 - 🏷 **Tags** to organize and manage groups of rules
 - ✅ **Single or bulk enable / disable**
@@ -120,8 +122,8 @@ ChronoTask is not just a card, but a small ecosystem:
 - Single source of truth for scheduling state
 
 ### 📅 Weekly Card
-- Weekly calendar-style visualization
-- Rule creation and editing directly from the UI
+- Weekly calendar-style visualization (slots crossing midnight or spanning several days continue in the next day's column)
+- Rule creation and editing directly from the UI, with a searchable entity picker
 - Fully usable on desktop and mobile
 
 ### 🏷 Tag Manager Card
@@ -153,6 +155,9 @@ After the restart, the cards appear in the Custom card section when adding a new
 
 > If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries.
 
+#### 🌙 Overnight and multi-day rules
+No extra setting is needed for a slot that crosses midnight: if the end time is earlier than the start time (e.g. Monday 22:00 → 06:00) and *End day* is left on “Same as start”, the end action runs the **next day**. For slots longer than that (e.g. Monday 09:00 → Thursday 09:00) choose the *End day* explicitly.
+
 ---
 ### 🛠️ Manual Installation
 
@@ -175,7 +180,7 @@ The cards are then registered automatically, both with storage-mode and YAML-mod
 
 ---
 ### ℹ️ Notes
-- After an update, a **browser refresh** may be required
+- After an update, restart Home Assistant and refresh the browser once
 - On mobile apps, if you notice UI issues, try fully closing and reopening the app
 - The integration is actively evolving; some parts may change over time
 
@@ -187,7 +192,7 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### Coming soon
 
-- 🔲 Lane layout in the weekly planner (v1.3.0) — overlapping rules shown side by side instead of stacking
+- 🔲 Lane layout in the weekly planner — overlapping rules shown side by side instead of stacking
 
 ### On the roadmap
 
