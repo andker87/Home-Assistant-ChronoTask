@@ -146,22 +146,12 @@ ChronoTask is available in the **HACS default store**.
 6. Go to **Settings → Devices & Services → Add integration**
 7. Search for **ChronoTask**
 
-#### 📌 Register the frontend resources (required)
-ChronoTask includes two custom Lovelace cards. Home Assistant requires that these are added as **Lovelace Resources**:
+#### 📌 Frontend cards (automatic)
+ChronoTask includes two custom Lovelace cards. The integration registers them **automatically** (with the version in the URL, so an update is never masked by a browser or CDN cache such as Cloudflare): there is nothing to add under Resources.
 
-1. Go to **Settings → Dashboards**
-2. Click the ⋮ **menu (top‑right) → Resources**
-3. Add the following two resources:
+After the restart, the cards appear in the Custom card section when adding a new card to a dashboard.
 
-Type: JavaScript Module  
-URL:
-```
-/local/chronotask/chronotask-weekly-card.js
-/local/chronotask/chronotask-tag-manager.js
-```
-4. Restart Home Assistant
-
-After this, the cards will appear in the Custom card section when adding a new card to a dashboard.
+> If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries.
 
 ---
 ### 🛠️ Manual Installation
@@ -181,28 +171,7 @@ The integration will automatically copy the required frontend files into:
 ```
 <config>/www/chronotask/
 ```
-You must then register the two Lovelace resources manually:
-
-Type: JavaScript Module  
-URL:
-```
-/local/chronotask/chronotask-weekly-card.js
-/local/chronotask/chronotask-tag-manager.js
-```
-
----
-### ⚠️ Lovelace YAML mode note
-
-If you are using Lovelace in **YAML mode**, resources must be added manually:
-
-```yaml
-lovelace:
-  resources:
-    - url: /chronotask/chronotask-weekly.js
-      type: module
-    - url: /chronotask/chronotask-tag-manager.js
-      type: module
-```
+The cards are then registered automatically, both with storage-mode and YAML-mode dashboards.
 
 ---
 ### ℹ️ Notes
@@ -222,7 +191,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### On the roadmap
 
-- 🌙 Overnight rules — correctly handle schedules that start on one day and end on the next
 - 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
 - ⚡ Execution conditions — run a rule only if a specific HA entity is in a given state
 - 🔁 Non-weekly recurrence — support for "every N days" or "first Monday of the month"

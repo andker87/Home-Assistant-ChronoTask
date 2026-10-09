@@ -6,11 +6,12 @@ import homeassistant.helpers.config_validation as cv
 
 from pathlib import Path
 
+from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_NAME, URL_BASE, INTEGRATION_VERSION
+from .const import DOMAIN, CONF_NAME, URL_BASE, INTEGRATION_VERSION, FRONTEND_FILES
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
@@ -97,6 +98,28 @@ async def _register_static_path_no_cache(hass: HomeAssistant, static_dir: str) -
         )
 
 
+def _register_frontend_modules(hass: HomeAssistant) -> None:
+    """Carica le card su ogni pagina di HA, senza Lovelace Resources manuali.
+
+    L'URL include la versione dell'integrazione: a ogni release cambia, quindi
+    né la cache del browser né una CDN/proxy davanti a HA (es. Cloudflare)
+    possono servire una copia vecchia. Funziona sia con dashboard in modalità
+    storage sia YAML e non modifica la configurazione dell'utente. Le card
+    si registrano solo se non lo sono già, quindi una risorsa aggiunta a mano
+    in passato non causa errori.
+    """
+    for name in FRONTEND_FILES:
+        url = f"{URL_BASE}/{name}?v={INTEGRATION_VERSION}"
+        try:
+            frontend.add_extra_js_url(hass, url)
+            _LOGGER.debug("ChronoTask: modulo frontend registrato: %s", url)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning(
+                "ChronoTask: registrazione automatica di %s fallita (%s): "
+                "aggiungila a mano tra le Risorse di Lovelace.", url, err,
+            )
+
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Setup globale: copia i JS delle card (in executor) e registra la loro
     URL pubblica senza cache, così un aggiornamento è visibile subito."""
@@ -105,6 +128,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     await hass.async_add_executor_job(_copy_frontend_files, hass)
 
     await _register_static_path_no_cache(hass, hass.config.path("www/chronotask"))
+    _register_frontend_modules(hass)
 
     return True
 
