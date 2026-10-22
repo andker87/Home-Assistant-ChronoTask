@@ -685,6 +685,7 @@ _ensureLayout(){
     block.style.top=`${geom.top}px`; block.style.height=`${geom.height}px`;
     const enabled = (rule.enabled !== false);
     block.classList.toggle('disabled', !enabled);
+    this._scheduleLanes();
   }
 
   // Durata in slot, "day-aware": se end_day differisce dal giorno di start
@@ -745,6 +746,50 @@ _ensureLayout(){
           const col=this._ensureDayColumn(day); if(col){ block.remove(); col.appendChild(block); }
         }
       }
+    });
+    this._scheduleLanes();
+  }
+
+  // Lane layout: in ogni colonna-giorno i blocchi che si sovrappongono nel
+  // tempo vengono affiancati (una "lane" ciascuno) invece di sovrapporsi.
+  // Un gruppo è una catena di blocchi che si toccano a cascata; ogni blocco
+  // prende la prima lane libera e la larghezza del gruppo si divide per il
+  // numero di lane usate. Chiamata in modo differito (_scheduleLanes) perché
+  // top/height dei blocchi vengono scritti in momenti diversi.
+  _scheduleLanes(){
+    if(this._lanesQueued) return;
+    this._lanesQueued=true;
+    requestAnimationFrame(()=>{ this._lanesQueued=false; try{ this._applyLanes(); }catch(_){ } });
+  }
+
+  _applyLanes(){
+    const overlay=this._els?.overlay; if(!overlay) return;
+    overlay.querySelectorAll('.daycol').forEach(col=>{
+      const items=Array.from(col.children).filter(b=>b.classList?.contains('rule')).map(b=>({b,top:parseFloat(b.style.top)||0,h:parseFloat(b.style.height)||0}));
+      items.sort((x,y)=> x.top-y.top || y.h-x.h);
+      let group=[], groupEnd=-Infinity;
+      const flush=()=>{
+        if(!group.length) return;
+        const laneEnds=[];
+        group.forEach(it=>{
+          let lane=laneEnds.findIndex(end=> end<=it.top+0.5);
+          if(lane<0){ lane=laneEnds.length; laneEnds.push(0); }
+          laneEnds[lane]=it.top+it.h; it.lane=lane;
+        });
+        const n=laneEnds.length;
+        group.forEach(it=>{
+          const st=it.b.style;
+          if(n===1){ st.left=''; st.right=''; st.width=''; }
+          else { st.left=`calc(${it.lane} * 100% / ${n} + 2px)`; st.width=`calc(100% / ${n} - 4px)`; st.right='auto'; }
+          it.b.dataset.lane=n>1?`${it.lane+1}/${n}`:'';
+        });
+        group=[]; groupEnd=-Infinity;
+      };
+      items.forEach(it=>{
+        if(group.length && it.top>=groupEnd-0.5) flush();
+        group.push(it); groupEnd=Math.max(groupEnd,it.top+it.h);
+      });
+      flush();
     });
   }
 
@@ -978,6 +1023,7 @@ async _setAllEnabled(enabled){
         block.remove();
       }
     });
+    this._scheduleLanes();
   }
 
   // Wrapper multi-slot: un rule "temp" ottimistico va renderizzato una volta
@@ -1031,6 +1077,7 @@ async _setAllEnabled(enabled){
     block.classList.toggle('disabled', !enabled);
 
     daycol.appendChild(block);
+    this._scheduleLanes();
   }
 
   _openDialog(ctx={}){
@@ -1597,6 +1644,7 @@ if (btn_duplicate) {
               }
             });
             for(let i=slots.length;i<oldBlocks.length;i++){ oldBlocks[i]?.remove(); }
+            this._scheduleLanes();
 
             this._pendingEdits.set(String(idInfo), {
               payload:{...payload, id:idInfo, uid:idInfo},

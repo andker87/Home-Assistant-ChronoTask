@@ -92,6 +92,7 @@ ChronoTask provides:
 - 🧩 **Recurring rules** with optional start / end
 - 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
 - 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
+- 🔲 **Lane layout** — overlapping rules are shown side by side instead of stacking
 - 🔎 **Searchable entity picker** — find an entity by name or id, with icon and friendly name
 - 🎨 **Colors and icons** for quick visual recognition
 - 🏷 **Tags** to organize and manage groups of rules
@@ -192,23 +193,21 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### Coming soon
 
-- 🔲 Lane layout in the weekly planner — overlapping rules shown side by side instead of stacking
+- 💾 Export / import rules — backup, restore, and share configurations between HA instances (first, so your rules are safe before data-model changes)
+- 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
 
 ### On the roadmap
 
-- 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
-- ⚡ Execution conditions — run a rule only if a specific HA entity is in a given state
+- ⚡ Execution conditions — optionally run a rule only if a specific HA entity is in a given state (rules without a condition keep running as usual)
+- 🔔 Trigger notifications — optional, per rule and off by default; an HA event is fired on every execution so automations can hook in without any notification
 - 🔁 Non-weekly recurrence — support for "every N days" or "first Monday of the month"
 - 📆 One-off exceptions — skip or force a rule on a specific date without modifying the base rule
-  
+
 ### Longer term
 
 - 📊 Daily / compact view — agenda-style card, useful on mobile dashboards
 - 🔀 Drag & drop rescheduling — move a block directly from the planner card
-- 💾 Export / import rules — backup, restore, and share configurations between HA instances
-- 🔔 Trigger notifications — optional HA notification on every rule execution
-- 🔌 Switch entity per rule — expose each rule as a switch.* entity, usable in standard automations
-  
+
 ---
 
 ## 🤝 Contributing
