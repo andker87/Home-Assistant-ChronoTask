@@ -14,7 +14,11 @@ except Exception:  # noqa: BLE001
 
 # URL base pubblico
 URL_BASE = "/local/chronotask"
-FRONTEND_FILES = ("chronotask-weekly-card.js", "chronotask-tag-manager.js")
+FRONTEND_FILES = (
+    "chronotask-weekly-card.js",
+    "chronotask-tag-manager.js",
+    "chronotask-backup-card.js",
+)
 
 DOMAIN = "chronotask"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
@@ -67,5 +71,9 @@ SERVICE_RUN_NOW = "run_rule_now"
 SERVICE_RESCHEDULE = "reschedule_all"
 SERVICE_ENABLE_TAG = "enable_tag"
 SERVICE_DISABLE_TAG = "disable_tag"
+SERVICE_EXPORT = "export_rules"
+SERVICE_IMPORT = "import_rules"
+EXPORT_FORMAT = "chronotask-export"
+EXPORT_VERSION = 1
 
 BUS_EVENT_CHANGED = DOMAIN + "_changed"

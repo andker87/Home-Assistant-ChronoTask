@@ -6,9 +6,10 @@ import logging
 import re
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -20,6 +21,11 @@ from .const import (
     SERVICE_RESCHEDULE,
     SERVICE_ENABLE_TAG,
     SERVICE_DISABLE_TAG,
+    SERVICE_EXPORT,
+    SERVICE_IMPORT,
+    EXPORT_FORMAT,
+    EXPORT_VERSION,
+    INTEGRATION_VERSION,
     CONF_TITLE,
     CONF_DAY,
     CONF_START,
@@ -125,6 +131,18 @@ _UPDATE_RULE_SCHEMA = _BASE_PLANNER.extend({
     vol.Optional(CONF_ICON): cv.string,
 })
 
+_IMPORT_SCHEMA = _BASE_PLANNER.extend({
+    vol.Required("rules"): list,
+    vol.Optional("mode", default="merge"): vol.In(["merge", "replace"]),
+})
+
+# Campi di una regola che l'import accetta dal file; il resto viene ignorato.
+_IMPORT_KEYS = (
+    ATTR_ID, CONF_TITLE, CONF_DAY, CONF_START, CONF_END, CONF_END_DAY, CONF_SLOTS,
+    CONF_SERVICE, CONF_SERVICE_DATA, CONF_END_SERVICE, CONF_END_SERVICE_DATA,
+    CONF_ENABLED, CONF_TAGS, CONF_COLOR, CONF_ICON,
+)
+
 _TAG_SCHEMA = _BASE_PLANNER.extend({
     vol.Required("tag"): cv.string,
 })
@@ -221,6 +239,32 @@ def _clean_slot(slot: dict) -> dict:
     return out
 
 
+def _prepare_rule(raw: dict) -> dict:
+    """Normalizza una regola già validata dallo schema (add_rule e import):
+    campi vuoti rimossi, tag normalizzati, service_data ripulito, fasce
+    allineate ai campi flat e id garantito."""
+    data = _strip_empty_optional_fields(dict(raw))
+    data[CONF_TAGS] = _normalize_tags(data.get(CONF_TAGS))
+    data[CONF_SERVICE_DATA] = _sanitize_service_data(
+        data.get(CONF_SERVICE), data.get(CONF_SERVICE_DATA)
+    )
+    if data.get(CONF_END_SERVICE):
+        data[CONF_END_SERVICE_DATA] = _sanitize_service_data(
+            data.get(CONF_END_SERVICE), data.get(CONF_END_SERVICE_DATA)
+        )
+    else:
+        data.pop(CONF_END_SERVICE_DATA, None)
+
+    if isinstance(data.get(CONF_SLOTS), list) and data[CONF_SLOTS]:
+        data[CONF_SLOTS] = [_clean_slot(s) for s in data[CONF_SLOTS]]
+        mirror_flat_from_slots(data)
+    else:
+        data[CONF_SLOTS] = [slot_from_flat(data)]
+
+    data[ATTR_ID] = data.get(ATTR_ID) or str(uuid.uuid4())
+    return data
+
+
 async def _set_tag_enabled(hass: HomeAssistant, call: ServiceCall, enabled: bool) -> None:
     """Logica condivisa per enable_tag e disable_tag."""
     pid = _require_planner(hass, call)
@@ -260,25 +304,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         storage = ctx["storage"]
         scheduler = ctx["scheduler"]
 
-        data = _strip_empty_optional_fields(dict(call.data))
-        data[CONF_TAGS] = _normalize_tags(data.get(CONF_TAGS))
-        data[CONF_SERVICE_DATA] = _sanitize_service_data(
-            data.get(CONF_SERVICE), data.get(CONF_SERVICE_DATA)
-        )
-        if data.get(CONF_END_SERVICE):
-            data[CONF_END_SERVICE_DATA] = _sanitize_service_data(
-                data.get(CONF_END_SERVICE), data.get(CONF_END_SERVICE_DATA)
-            )
-        else:
-            data.pop(CONF_END_SERVICE_DATA, None)
-
-        if isinstance(data.get(CONF_SLOTS), list) and data[CONF_SLOTS]:
-            data[CONF_SLOTS] = [_clean_slot(s) for s in data[CONF_SLOTS]]
-            mirror_flat_from_slots(data)
-        else:
-            data[CONF_SLOTS] = [slot_from_flat(data)]
-
-        data[ATTR_ID] = data.get(ATTR_ID) or str(uuid.uuid4())
+        data = _prepare_rule(call.data)
 
         storage.upsert_rule(data)
         _notify_and_refresh(hass, pid)
@@ -412,6 +438,73 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def disable_tag(call: ServiceCall) -> None:
         await _set_tag_enabled(hass, call, enabled=False)
 
+    async def export_rules(call: ServiceCall) -> dict:
+        """Restituisce tutte le regole del planner in un documento JSON
+        riutilizzabile da import_rules (backup, copia su un'altra istanza)."""
+        pid = _require_planner(hass, call)
+        ctx = hass.data[DOMAIN][pid]
+        return {
+            "format": EXPORT_FORMAT,
+            "version": EXPORT_VERSION,
+            "integration_version": INTEGRATION_VERSION,
+            "exported_at": dt_util.utcnow().isoformat(),
+            "planner_name": ctx.get("name"),
+            "rules": ctx["storage"].list_rules(),
+        }
+
+    async def import_rules(call: ServiceCall) -> dict:
+        """Importa regole da un export. merge: le aggiunge a quelle esistenti
+        (un id già presente non sovrascrive mai: la regola importata ne riceve
+        uno nuovo). replace: sostituisce tutte le regole, ma solo se almeno una
+        è valida, così un file sbagliato non svuota il planner."""
+        pid = _require_planner(hass, call)
+        ctx = hass.data[DOMAIN][pid]
+        storage = ctx["storage"]
+        scheduler = ctx["scheduler"]
+        mode = call.data["mode"]
+
+        used_ids = {r.get(ATTR_ID) for r in storage.list_rules()} if mode == "merge" else set()
+        imported: list[dict] = []
+        skipped: list[dict] = []
+        renamed = 0
+
+        for idx, raw in enumerate(call.data["rules"]):
+            title = raw.get(CONF_TITLE) if isinstance(raw, dict) else None
+            try:
+                if not isinstance(raw, dict):
+                    raise vol.Invalid("la regola non è un oggetto")
+                clean = {k: v for k, v in raw.items() if k in _IMPORT_KEYS}
+                rule = _prepare_rule(_ADD_RULE_SCHEMA(clean))
+            except (vol.Invalid, vol.MultipleInvalid) as err:
+                skipped.append({"index": idx, "title": title, "error": str(err)})
+                continue
+            if rule[ATTR_ID] in used_ids:
+                rule[ATTR_ID] = str(uuid.uuid4())
+                renamed += 1
+            used_ids.add(rule[ATTR_ID])
+            imported.append(rule)
+
+        if mode == "replace":
+            if not imported:
+                raise HomeAssistantError(
+                    "Nessuna regola valida nel file: le regole esistenti non sono state toccate."
+                )
+            storage.set_rules(imported)
+        else:
+            for rule in imported:
+                storage.upsert_rule(rule)
+
+        await storage.async_save()
+        _notify_and_refresh(hass, pid)
+        hass.async_create_task(scheduler.async_reschedule_all())
+        return {
+            "mode": mode,
+            "imported": len(imported),
+            "skipped": skipped,
+            "renamed_ids": renamed,
+            "total": len(storage.list_rules()),
+        }
+
     hass.services.async_register(DOMAIN, SERVICE_ADD, add_rule, schema=_ADD_RULE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_UPDATE, update_rule, schema=_UPDATE_RULE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_REMOVE, remove_rule, schema=_RULE_ID_SCHEMA)
@@ -420,5 +513,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, SERVICE_RESCHEDULE, reschedule_all, schema=_BASE_PLANNER)
     hass.services.async_register(DOMAIN, SERVICE_ENABLE_TAG, enable_tag, schema=_TAG_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_DISABLE_TAG, disable_tag, schema=_TAG_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT, export_rules, schema=_BASE_PLANNER,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_IMPORT, import_rules, schema=_IMPORT_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
-    _LOGGER.debug("ChronoTask: %d servizi registrati", 8)
+    _LOGGER.debug("ChronoTask: %d servizi registrati", 10)

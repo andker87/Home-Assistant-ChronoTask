@@ -295,3 +295,45 @@ disable_tag:
       example: "vacation"
       selector:
         text:
+
+export_rules:
+  name: Export rules
+  description: >-
+    Returns all the rules of the planner as a JSON document (use it as a
+    response variable). The same document can be passed to "Import rules".
+  fields:
+    planner_id:
+      name: Planner ID
+      required: false
+      selector:
+        text:
+
+import_rules:
+  name: Import rules
+  description: >-
+    Imports rules from an export. In "merge" mode they are added to the existing
+    ones (an id that already exists is never overwritten: the imported rule gets
+    a new id). In "replace" mode all rules are replaced, but only if the file
+    contains at least one valid rule. Invalid rules are skipped and reported in
+    the response.
+  fields:
+    planner_id:
+      name: Planner ID
+      required: false
+      selector:
+        text:
+    rules:
+      name: Rules
+      description: The "rules" list of an export.
+      required: true
+      selector:
+        object:
+    mode:
+      name: Mode
+      required: false
+      default: merge
+      selector:
+        select:
+          options:
+            - merge
+            - replace
