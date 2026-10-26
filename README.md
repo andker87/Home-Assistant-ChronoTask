@@ -144,6 +144,8 @@ ChronoTask is not just a card, but a small ecosystem:
 
 ### ✅ Installation via HACS (recommended)
 
+Requires Home Assistant **2024.7** or newer.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andker87&repository=Home-Assistant-ChronoTask&category=integration)
 
 ChronoTask is available in the **HACS default store**.
@@ -195,7 +197,7 @@ entities:
     hold_reason: override
 ```
 
-Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
+Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync` / `run_now`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
 
 **Good to know**
 - Only rules that name an `entity_id` (in the data or in `target`) can be held; for rules that target areas or devices `hold` has no effect, and they don't appear in `entities`.
@@ -371,7 +373,7 @@ ChronoTask was born from a real need and grows through collaboration.
 - Report bugs and issues via **GitHub Issues**
 - Propose ideas and improvements
 - Open a **Pull Request** if you want to contribute
-- Run the tests (no Home Assistant needed, only `voluptuous`): `python3 tests/test_slots_state.py`, `python3 tests/test_holds.py`, `python3 tests/test_import_export.py`
+- Run the tests (no Home Assistant needed, only `voluptuous`): `for t in tests/test_*.py; do python3 $t; done`
 
 ChronoTask does not aim to replace anything.  
 It simply aims to make **weekly scheduling in Home Assistant readable, manageable and fully local**.

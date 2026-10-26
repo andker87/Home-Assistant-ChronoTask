@@ -1,3 +1,5 @@
+import { tagsToArray as _tagsToArray, makeTranslator } from './chronotask-common.js?v=__VERSION__';
+
 const CTW_VERSION = '__VERSION__';
 try {
   console.info(
@@ -14,13 +16,6 @@ function _relativeLuminance({r,g,b}){ const s=[r,g,b].map(v=>v/255).map(v=> v<=0
 function _idealTextColor(hex){ return _relativeLuminance(_hexToRgb(hex))>0.5?'#000':'#fff'; }
 function _darkenHex(hex,amount=15){ const {r,g,b}=_hexToRgb(hex); const clamp=x=>Math.max(0,Math.min(255,x)); const rr=clamp(r-amount),gg=clamp(g-amount),bb=clamp(b-amount); const toH=v=>v.toString(16).padStart(2,'0'); return `#${toH(rr)}${toH(gg)}${toH(bb)}`; }
 
-function _tagsToArray(raw){
-  if(!raw) return [];
-  if(Array.isArray(raw)) return raw.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);
-  const s=String(raw).trim();
-  if(!s) return [];
-  return s.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
-}
 function _tagsToText(arr){
   const a=_tagsToArray(arr);
   return a.join(', ');
@@ -53,7 +48,7 @@ const CT_STRINGS={
     slotLabel:'Fascia', removeSlot:'Rimuovi fascia',
     day:'Giorno', startTime:'Ora inizio', endTimeOpt:'Ora fine (opz.)', endDay:'Giorno fine',
     sameAsStart:'(uguale a inizio)',
-    selectIcon:'Seleziona icona (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'Seleziona icona (mdi)',
     selectService:'(seleziona servizio)',
     notInDomain:(s)=>`${s} (non nel dominio attuale)`,
     deleting:'Eliminando…',
@@ -61,7 +56,7 @@ const CT_STRINGS={
     includeDomains:'Includi domini (autocomplete entità)', excludeDomains:'Escludi domini',
     entityCT:'Entità (ChronoTask)', startHour:'Ora inizio', endHour:'Ora fine',
     slotInterval:'Intervallo slot', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
-    configureRulesEntity:'(configura rules_entity)', closeAria:'Chiudi',
+    configureRulesEntity:'(configura rules_entity)',
     fieldBrightness:'Luminosità (0–255)', fieldTransition:'Transizione (s)', fieldEffect:'Effetto', egColorloop:'es. colorloop',
     fieldTemperature:'Temperatura', fieldPosition:'Posizione (0–100)', fieldVolume:'Volume (0.0–1.0)',
     warnNoStartService:'Seleziona un servizio di inizio.', warnNoValidSlots:'Aggiungi almeno una fascia oraria valida (giorno + ora inizio).',
@@ -91,7 +86,7 @@ const CT_STRINGS={
     slotLabel:'Slot', removeSlot:'Remove slot',
     day:'Day', startTime:'Start time', endTimeOpt:'End time (opt.)', endDay:'End day',
     sameAsStart:'(same as start)',
-    selectIcon:'Select icon (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'Select icon (mdi)',
     selectService:'(select service)',
     notInDomain:(s)=>`${s} (not in current domain)`,
     deleting:'Deleting…',
@@ -99,7 +94,7 @@ const CT_STRINGS={
     includeDomains:'Include domains (entity autocomplete)', excludeDomains:'Exclude domains',
     entityCT:'Entity (ChronoTask)', startHour:'Start hour', endHour:'End hour',
     slotInterval:'Slot interval', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
-    configureRulesEntity:'(configure rules_entity)', closeAria:'Close',
+    configureRulesEntity:'(configure rules_entity)',
     fieldBrightness:'Brightness (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effect', egColorloop:'e.g. colorloop',
     fieldTemperature:'Temperature', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
     warnNoStartService:'Select a start service.', warnNoValidSlots:'Add at least one valid time slot (day + start time).',
@@ -129,7 +124,7 @@ const CT_STRINGS={
     slotLabel:'Créneau', removeSlot:'Supprimer le créneau',
     day:'Jour', startTime:'Heure de début', endTimeOpt:'Heure de fin (opt.)', endDay:'Jour de fin',
     sameAsStart:'(identique au début)',
-    selectIcon:'Sélectionner une icône (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'Sélectionner une icône (mdi)',
     selectService:'(sélectionner un service)',
     notInDomain:(s)=>`${s} (hors du domaine actuel)`,
     deleting:'Suppression…',
@@ -137,7 +132,7 @@ const CT_STRINGS={
     includeDomains:'Inclure les domaines (autocomplétion des entités)', excludeDomains:'Exclure les domaines',
     entityCT:'Entité (ChronoTask)', startHour:'Heure de début', endHour:'Heure de fin',
     slotInterval:'Intervalle des créneaux', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
-    configureRulesEntity:'(configurer rules_entity)', closeAria:'Fermer',
+    configureRulesEntity:'(configurer rules_entity)',
     fieldBrightness:'Luminosité (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effet', egColorloop:'ex. colorloop',
     fieldTemperature:'Température', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
     warnNoStartService:'Sélectionnez un service de début.', warnNoValidSlots:'Ajoutez au moins un créneau horaire valide (jour + heure de début).',
@@ -167,7 +162,7 @@ const CT_STRINGS={
     slotLabel:'Zeitfenster', removeSlot:'Zeitfenster entfernen',
     day:'Tag', startTime:'Startzeit', endTimeOpt:'Endzeit (opt.)', endDay:'Endtag',
     sameAsStart:'(wie Start)',
-    selectIcon:'Symbol auswählen (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'Symbol auswählen (mdi)',
     selectService:'(Dienst auswählen)',
     notInDomain:(s)=>`${s} (nicht in aktueller Domain)`,
     deleting:'Wird gelöscht…',
@@ -175,7 +170,7 @@ const CT_STRINGS={
     includeDomains:'Domains einschließen (Entitäts-Autovervollständigung)', excludeDomains:'Domains ausschließen',
     entityCT:'Entität (ChronoTask)', startHour:'Startzeit', endHour:'Endzeit',
     slotInterval:'Zeitfenster-Intervall', min15:'15 Min', min30:'30 Min', min45:'45 Min', h1:'1 Std',
-    configureRulesEntity:'(rules_entity konfigurieren)', closeAria:'Schließen',
+    configureRulesEntity:'(rules_entity konfigurieren)',
     fieldBrightness:'Helligkeit (0–255)', fieldTransition:'Übergang (s)', fieldEffect:'Effekt', egColorloop:'z. B. colorloop',
     fieldTemperature:'Temperatur', fieldPosition:'Position (0–100)', fieldVolume:'Lautstärke (0.0–1.0)',
     warnNoStartService:'Wähle einen Start-Dienst aus.', warnNoValidSlots:'Füge mindestens ein gültiges Zeitfenster hinzu (Tag + Startzeit).',
@@ -205,7 +200,7 @@ const CT_STRINGS={
     slotLabel:'Franja', removeSlot:'Eliminar franja',
     day:'Día', startTime:'Hora de inicio', endTimeOpt:'Hora de fin (opc.)', endDay:'Día de fin',
     sameAsStart:'(igual que el inicio)',
-    selectIcon:'Seleccionar icono (mdi)', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'Seleccionar icono (mdi)',
     selectService:'(seleccionar servicio)',
     notInDomain:(s)=>`${s} (no está en el dominio actual)`,
     deleting:'Eliminando…',
@@ -213,7 +208,7 @@ const CT_STRINGS={
     includeDomains:'Incluir dominios (autocompletar entidades)', excludeDomains:'Excluir dominios',
     entityCT:'Entidad (ChronoTask)', startHour:'Hora de inicio', endHour:'Hora de fin',
     slotInterval:'Intervalo de franja', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
-    configureRulesEntity:'(configura rules_entity)', closeAria:'Cerrar',
+    configureRulesEntity:'(configura rules_entity)',
     fieldBrightness:'Brillo (0-255)', fieldTransition:'Transición (s)', fieldEffect:'Efecto', egColorloop:'ej. colorloop',
     fieldTemperature:'Temperatura', fieldPosition:'Posición (0-100)', fieldVolume:'Volumen (0.0-1.0)',
     warnNoStartService:'Selecciona un servicio de inicio.', warnNoValidSlots:'Añade al menos una franja horaria válida (día + hora de inicio).',
@@ -243,7 +238,7 @@ const CT_STRINGS={
     slotLabel:'时段', removeSlot:'移除时段',
     day:'星期', startTime:'开始时间', endTimeOpt:'结束时间（可选）', endDay:'结束日',
     sameAsStart:'（与开始相同）',
-    selectIcon:'选择图标（mdi）', iconPlaceholder:'mdi:lightbulb',
+    selectIcon:'选择图标（mdi）',
     selectService:'（选择服务）',
     notInDomain:(s)=>`${s}（不在当前域中）`,
     deleting:'正在删除…',
@@ -251,7 +246,7 @@ const CT_STRINGS={
     includeDomains:'包含域（实体自动补全）', excludeDomains:'排除域',
     entityCT:'实体（ChronoTask）', startHour:'开始时间', endHour:'结束时间',
     slotInterval:'时段间隔', min15:'15 分钟', min30:'30 分钟', min45:'45 分钟', h1:'1 小时',
-    configureRulesEntity:'（配置 rules_entity）', closeAria:'关闭',
+    configureRulesEntity:'（配置 rules_entity）',
     fieldBrightness:'亮度（0–255）', fieldTransition:'过渡时间（秒）', fieldEffect:'效果', egColorloop:'例如：colorloop',
     fieldTemperature:'温度', fieldPosition:'位置（0–100）', fieldVolume:'音量（0.0–1.0）',
     warnNoStartService:'请选择一个开始服务。', warnNoValidSlots:'请至少添加一个有效的时段（星期 + 开始时间）。',
@@ -263,16 +258,7 @@ const CT_STRINGS={
     errRenderActionFields:'ChronoTask：渲染动作字段时出错：',
   },
 };
-function _ctLang(hass){
-  const raw=String(hass?.locale?.language||hass?.language||'en').toLowerCase();
-  const short=raw.split('-')[0];
-  return CT_STRINGS[short]?short:'en';
-}
-function _ctT(hass,key,...args){
-  const dict=CT_STRINGS[_ctLang(hass)];
-  const v=dict[key];
-  return typeof v==='function' ? v(...args) : (v??CT_STRINGS.en[key]??key);
-}
+const { lang: _ctLang, t: _ctT } = makeTranslator(CT_STRINGS);
 
 class ChronoTaskWeeklyCard extends HTMLElement{
   static getConfigElement(){ return document.createElement('chronotask-weekly-card-editor'); }
@@ -445,7 +431,7 @@ _ensureLayout(){
 
     /* Tutta la compattazione sotto si basa sulla dimensione REALE della card
        (container query su .wrap, non sul viewport del browser): fondamentale
-       quando la card vive dentro un wrapper come Bubble Card che la rimpicciolisce
+       quando la card vive dentro un contenitore che la rimpicciolisce
        indipendentemente dalla finestra. I nomi dei giorni vengono anche
        riscritti in JS (breve/estremamente breve) da un ResizeObserver, perché
        un puro troncamento CSS di "mercoledì" resta illeggibile sotto una certa
@@ -522,7 +508,7 @@ _ensureLayout(){
   this._rebuildOverlayColumns();
   this._layoutReady=true;
 
-  // Adatta la card alla propria larghezza reale (es. dentro Bubble Card o
+  // Adatta la card alla propria larghezza reale (es. dentro un'altra card o
   // una colonna stretta), non solo al viewport del browser: le regole
   // @container in CSS bastano per spaziature/font, ma i nomi dei giorni sono
   // testo generato in JS e vanno riscritti esplicitamente quando c'è poco
@@ -663,6 +649,9 @@ _ensureLayout(){
     });
   }
 
+  // "HH:MM" -> minuti dalla mezzanotte (0 se mancante o non valido).
+  _hmToMin(t){ const [h,m]=String(t||'0:0').split(':').map(Number); return (h||0)*60+(m||0); }
+
   _decorateBlock(block,rule,cont,segDay){
     const color=_normalizeHex(rule.color||rule.ui_color||this._config.default_color,this._config.default_color);
     block.style.background=color; block.style.borderColor=_darkenHex(color,25); block.style.color=_idealTextColor(color);
@@ -676,8 +665,7 @@ _ensureLayout(){
     block.dataset.endDay=(rule.end_day!=null&&rule.end_day!=='')?String(Number(rule.end_day)):'';
     block.dataset.start=startStr; block.dataset.end=endStr;
     if(cont){
-      const toMin=t=>{ const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+(m||0); };
-      const ed=this._effEndDay(block.dataset.day,rule.end_day,toMin(startStr),toMin(endStr));
+      const ed=this._effEndDay(block.dataset.day,rule.end_day,this._hmToMin(startStr),this._hmToMin(endStr));
       block.dataset.cont=cont; block.dataset.srcDay=block.dataset.day; block.dataset.day=String(segDay); block.dataset.endDay=String(ed);
       block.title=`${label} — ${startStr} → ${endStr}`;
     }
@@ -709,9 +697,8 @@ _ensureLayout(){
   _computeGeom(rule,cont){
     const startStr=(rule.start||rule.time||'00:00').slice(0,5);
     const endStr=(rule.end||startStr).slice(0,5);
-    const [sh,sm]=startStr.split(':').map(Number); const [eh,em]=endStr.split(':').map(Number);
     const startHour=this._toHour(this._config.start_hour,6); const slotMin=this._getSlotMinutes(); const startMinBaseline=startHour*60;
-    const startAbsMin=(sh*60)+(sm||0); const endAbsMin=(eh*60)+(em||0);
+    const startAbsMin=this._hmToMin(startStr); const endAbsMin=this._hmToMin(endStr);
     const day=rule.day??rule.weekday??0; const endDay=rule.end_day;
     const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin;
     const durationSlots=this._durationSlots(day,endDay,startAbsMin,endAbsMin,slotMin);
@@ -732,8 +719,6 @@ _ensureLayout(){
 
   _relayoutBlocks(){
     const overlay=this._els?.overlay; if(!overlay) return;
-    const headerPx=this._headerPx||40, rowPx=this._rowPx||40;
-    const startHour=this._toHour(this._config.start_hour,6); const slotMin=this._getSlotMinutes(); const startMinBaseline=startHour*60;
     overlay.querySelectorAll('.rule').forEach(block=>{
       const day=Number(block.dataset.day??-1);
       const cont=block.dataset.cont||'';
@@ -798,14 +783,13 @@ _ensureLayout(){
   // dall'alto della griglia all'ora di fine. I blocchi non più necessari
   // (fascia accorciata) vengono rimossi dalla pulizia degli orfani.
   _syncContBlock(block,sv,uid,rule,seenUids,existingBlocks){
-    const toMin=t=>{ const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+(m||0); };
     const day=Number(sv.day??sv.weekday);
-    const endDay=sv.end?this._effEndDay(day,sv.end_day,toMin(sv.start),toMin(sv.end)):day;
+    const endDay=sv.end?this._effEndDay(day,sv.end_day,this._hmToMin(sv.start),this._hmToMin(sv.end)):day;
     const span=(endDay-day+7)%7;
     const baseline=this._toHour(this._config.start_hour,6)*60;
     for(let i=1;i<=span;i++){
       const last=(i===span);
-      if(last&&toMin(sv.end)<=baseline) break;
+      if(last&&this._hmToMin(sv.end)<=baseline) break;
       const cuid=uid+'#cont'+i;
       seenUids.add(cuid);
       const segDay=(day+i)%7;
@@ -821,7 +805,6 @@ _ensureLayout(){
     }
   }
 
-  _findRuleBlockByUid(uid){ if(!uid) return null; try{ return this._els?.overlay?.querySelector(`.rule[data-uid="${_cssEscape(String(uid))}"]`)||null; }catch(_){ return null; } }
 
   _slotsSignature(r){
     return this._effectiveSlots(r).map(s=>[
@@ -1040,45 +1023,15 @@ async _setAllEnabled(enabled){
     if(isNaN(day)||day<0||day>6) return;
     const daycol=this._els.overlay.querySelector(`.daycol[data-day="${day}"]`);
     if(!daycol) return;
-
-    const startStr=(rule.start||rule.time||'00:00').slice(0,5);
-    const endStr=(rule.end||startStr).slice(0,5);
-    const [sh,sm]=startStr.split(':').map(Number); const [eh,em]=endStr.split(':').map(Number);
-
-    const startHour=this._toHour(this._config.start_hour,6);
-    const slotMin=this._getSlotMinutes();
-    const startMinBaseline=startHour*60;
-
-    const startAbsMin=(sh*60)+(sm||0);
-    const endAbsMin=(eh*60)+(em||0);
-    const deltaStartSlots=(startAbsMin-startMinBaseline)/slotMin;
-    const durationSlots=this._durationSlots(day,rule.end_day,startAbsMin,endAbsMin,slotMin);
-
-    const {top,height}=this._computeGeom(rule);
-
     const block=document.createElement('div');
     block.className='rule temp';
     if(opts.pendingId) block.dataset.pendingId=String(opts.pendingId);
     block.dataset.tempTs=String(Date.now());
-
-    const color=_normalizeHex(rule.color||rule.ui_color||this._config.default_color,this._config.default_color);
-    block.style.cssText=`top:${top}px;height:${height}px;background:${color};border-color:${_darkenHex(color,25)};color:${_idealTextColor(color)};`;
-
-    const icon=(rule.icon&&String(rule.icon).startsWith('mdi:'))?String(rule.icon):'';
-    if(icon){ const ic=document.createElement('ha-icon'); ic.setAttribute('icon',icon); block.appendChild(ic); }
-
-    const span=document.createElement('span'); span.textContent=(rule.title||rule.service||'Action')+' (…)'; block.appendChild(span);
-    block.title=`${(rule.title||rule.service||'Action')} — ${startStr}${rule.end?' → '+endStr:''}`;
-
-    block.dataset.day=String(day);
-    block.dataset.endDay=(rule.end_day!=null&&rule.end_day!=='')?String(Number(rule.end_day)):'';
-    block.dataset.start=startStr; block.dataset.end=endStr;
-    const enabled = (rule.enabled !== false);
-    block.classList.toggle('disabled', !enabled);
-
     daycol.appendChild(block);
-    this._scheduleLanes();
+    this._decorateBlock(block,rule);
+    const span=block.querySelector('span'); if(span) span.textContent+=' (…)';
   }
+
 
   _openDialog(ctx={}){
     if(this._activeDialog){ setTimeout(()=>{ if(!this._activeDialog) this._openDialog(ctx); },120); return; }
@@ -1246,10 +1199,9 @@ async _setAllEnabled(enabled){
       f_icon=document.createElement('input'); f_icon.id='f_icon'; f_icon.placeholder='mdi:lightbulb'; f_icon.style.cssText='width:100%;box-sizing:border-box;min-height:40px'; icon_wrap.appendChild(f_icon);
     };
     if(customElements.get('ha-icon-picker')){
-      // Come ha-entity-picker, anche questo componente HA creato a mano può
-      // fallire silenziosamente in contesti come Bubble Card: non lasciamo
-      // che un errore qui (sincrono o nella creazione) blocchi il resto del
-      // dialog, compresi i pulsanti collegati più avanti.
+      // Un componente HA creato a mano può fallire silenziosamente in alcuni
+      // contesti: non lasciamo che un errore qui (sincrono o nella creazione)
+      // blocchi il resto del dialog, compresi i pulsanti collegati più avanti.
       try{
         icon_picker=document.createElement('ha-icon-picker');
         icon_picker.hass=this._hass; icon_picker.label=this._t('selectIcon'); icon_picker.value='';
@@ -1274,7 +1226,6 @@ async _setAllEnabled(enabled){
     let f_entity;
     const includeDomains=Array.isArray(this._config.entity_include_domains)?this._config.entity_include_domains:undefined;
     const excludeDomains=Array.isArray(this._config.entity_exclude_domains)?this._config.entity_exclude_domains:undefined;
-    const makeFilterFn=(q)=>{ const qq=String(q||'').trim().toLowerCase(); if(!qq) return ()=>true; return (eid,st)=>{ const name=(st?.attributes?.friendly_name||'').toLowerCase(); return eid.toLowerCase().includes(qq) || name.includes(qq); }; };
     const DOMAIN_ICONS={light:'mdi:lightbulb',switch:'mdi:toggle-switch',climate:'mdi:thermostat',sensor:'mdi:eye',binary_sensor:'mdi:checkbox-blank-circle-outline',cover:'mdi:window-shutter',fan:'mdi:fan',media_player:'mdi:cast',input_boolean:'mdi:toggle-switch-outline',input_number:'mdi:ray-vertex',input_select:'mdi:format-list-bulleted',scene:'mdi:palette',script:'mdi:script-text',automation:'mdi:robot',lock:'mdi:lock',vacuum:'mdi:robot-vacuum',water_heater:'mdi:water-boiler',humidifier:'mdi:air-humidifier',button:'mdi:gesture-tap-button',number:'mdi:ray-vertex',select:'mdi:format-list-bulleted',valve:'mdi:valve',siren:'mdi:bullhorn'};
     const buildEntityCombo=()=>{
       const all=Object.keys(this._hass?.states||{}).filter(eid=>{
@@ -1502,7 +1453,7 @@ if (prefill && !existing) {
     };
 
     try{ refreshServiceSelects(); }catch(err){ console.error(this._t('errActionSelectorInit'),err); }
-    { const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); ['value-changed','change','input','focusin'].forEach(evt=> row_entity.addEventListener(evt,onEntityChange)); }
+    { const onEntityChange=()=>refreshServiceSelects({preserveSelection:true}); row_entity.addEventListener('change',onEntityChange); }
     f_service_sel.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields,f_service_sel.value,eid,{}); });
     f_service_sel_end.addEventListener('change',()=>{ const eid=getEntityId(); _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,{}); });
 

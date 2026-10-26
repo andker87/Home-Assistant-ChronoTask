@@ -218,7 +218,8 @@ def event_action(rule: dict[str, Any], part: str) -> tuple[str | None, dict]:
     return rule.get(CONF_END_SERVICE), rule.get(CONF_END_SERVICE_DATA) or {}
 
 
-def _parse_hm(value: Any) -> tuple[int, int] | None:
+def parse_hm(value: Any) -> tuple[int, int] | None:
+    """'HH:MM' (anche 'HH:MM:SS') -> (ore, minuti), oppure None se non valido."""
     try:
         hh, mm = str(value)[:5].split(":")
         hh, mm = int(hh), int(mm)
@@ -237,11 +238,11 @@ def _rule_events(rule: dict[str, Any]) -> Iterator[tuple[int, str, int, tuple[in
             day = int(slot.get(CONF_DAY))
         except (TypeError, ValueError):
             continue
-        start = _parse_hm(slot.get(CONF_START))
+        start = parse_hm(slot.get(CONF_START))
         if start is None or not 0 <= day <= 6:
             continue
         yield idx, "start", day, start
-        end = _parse_hm(slot.get(CONF_END))
+        end = parse_hm(slot.get(CONF_END))
         if end is not None:
             end_day = effective_end_day(day, slot.get(CONF_START), slot.get(CONF_END), slot.get(CONF_END_DAY))
             yield idx, "end", end_day, end
@@ -256,7 +257,7 @@ def _last_occurrence(now: datetime, weekday: int, hm: tuple[int, int]) -> dateti
     return cand
 
 
-def _next_occurrence(now: datetime, weekday: int, hm: tuple[int, int]) -> datetime:
+def next_occurrence(now: datetime, weekday: int, hm: tuple[int, int]) -> datetime:
     """Prima occorrenza (> now) di weekday/hm."""
     cand = now.replace(hour=hm[0], minute=hm[1], second=0, microsecond=0)
     cand += timedelta(days=(weekday - now.weekday()) % 7)
@@ -299,7 +300,7 @@ def next_event_time_for_entity(
         if not rule.get(CONF_ENABLED, True) or eid not in rule_targets(rule):
             continue
         for _idx, _part, day, hm in _rule_events(rule):
-            at = _next_occurrence(now, day, hm)
+            at = next_occurrence(now, day, hm)
             if best is None or at < best:
                 best = at
     return best

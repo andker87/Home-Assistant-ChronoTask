@@ -7,6 +7,7 @@ import homeassistant.helpers.config_validation as cv
 from pathlib import Path
 
 from homeassistant.components import frontend
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -55,45 +56,20 @@ def _copy_frontend_files(hass: HomeAssistant) -> None:
 async def _register_static_path_no_cache(hass: HomeAssistant, static_dir: str) -> None:
     """Registra /local/chronotask con cache disabilitata.
 
-    Il file JS delle card viene riscritto ad ogni avvio con la stessa
-    identica URL (/local/chronotask/...): se il browser lo mette in cache
-    in modo aggressivo, un utente può restare bloccato su una versione
-    vecchia per mesi nonostante aggiornamenti e riavvii successivi, perché
-    non c'è mai una richiesta di rete che gli faccia notare la differenza.
-    Da qui l'esigenza di questa registrazione esplicita con cache_headers=False,
-    anche se "frontend" già serve /local -> <config>/www di default (ma con
-    cache abilitata, quindi non basta).
-
-    HA ha rimosso/rinominato l'API sincrona hass.http.register_static_path
-    in alcune versioni recenti a favore di una versione async basata su
-    StaticPathConfig: proviamo prima quella, poi ripieghiamo sulla vecchia
-    per le versioni di HA che non hanno ancora la nuova.
+    Il file JS delle card viene riscritto ad ogni avvio con la stessa URL
+    (/local/chronotask/...): chi lo carica da una risorsa Lovelace aggiunta a
+    mano, senza versione nell'URL, potrebbe restare su una copia vecchia in
+    cache. La route /local di default ha la cache attiva, quindi non basta.
     """
     try:
-        from homeassistant.components.http import StaticPathConfig
         await hass.http.async_register_static_paths(
             [StaticPathConfig(URL_BASE, static_dir, False)]
         )
-        _LOGGER.debug("ChronoTask: static path no-cache registrato (async) su %s", URL_BASE)
-        return
-    except ImportError:
-        pass  # HA senza StaticPathConfig: prova l'API legacy sotto
+        _LOGGER.debug("ChronoTask: static path no-cache registrato su %s", URL_BASE)
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning(
-            "ChronoTask: registrazione static path no-cache (async) fallita per %s: %s",
-            URL_BASE, err,
-        )
-        return
-
-    try:
-        hass.http.register_static_path(URL_BASE, static_dir, cache_headers=False)
-        _LOGGER.debug("ChronoTask: static path no-cache registrato (legacy) su %s", URL_BASE)
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.warning(
-            "ChronoTask: impossibile registrare %s senza cache (%s). "
-            "I file delle card saranno serviti dalla route /local di default "
-            "(con cache attiva): dopo un aggiornamento potrebbe servire uno "
-            "svuotamento manuale della cache del browser.",
+            "ChronoTask: impossibile registrare %s senza cache (%s): le card "
+            "restano servite dalla route /local di default.",
             URL_BASE, err,
         )
 
@@ -162,7 +138,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Pianifica tutte le regole
     await scheduler.async_reschedule_all()
+
+    # Rinomina dalle opzioni: ricarica l'entry così nomi di sensore, calendario
+    # e dispositivo si aggiornano subito, senza riavviare Home Assistant.
+    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     return True
+
+
+async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

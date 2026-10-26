@@ -13,6 +13,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    BUS_EVENT_CHANGED,
     DOMAIN,
     SERVICE_ADD,
     SERVICE_UPDATE,
@@ -50,8 +51,6 @@ from .const import (
 from .slots import all_target_entities, slot_from_flat, mirror_flat_from_slots
 
 _LOGGER = logging.getLogger(__name__)
-
-REQ_FIELDS = [CONF_TITLE, CONF_DAY, CONF_START, CONF_SERVICE]
 
 # ---------------------------------------------------------------------------
 # Schemi voluptuous per validazione automatica dei servizi
@@ -235,14 +234,20 @@ def _rule_has_tag(rule: dict, tag: str) -> bool:
 
 
 def _notify_and_refresh(hass: HomeAssistant, pid: str) -> None:
-    """Notifica l'UI e aggiorna il sensore."""
-    hass.bus.async_fire(f"{DOMAIN}_changed", {"planner_id": pid})
-    try:
-        ent = hass.data[DOMAIN][pid].get("sensor_entity")
-        if ent:
-            hass.async_create_task(ent.async_refresh_state())
-    except Exception:  # noqa: BLE001
-        pass
+    """Aggiorna il sensore e avvisa UI e calendario. L'evento porta
+    sensor_refreshed, così il sensore non si ricalcola una seconda volta."""
+    ent = (hass.data.get(DOMAIN, {}).get(pid) or {}).get("sensor_entity")
+    if ent is not None:
+        hass.async_create_task(ent.async_refresh_state())
+    hass.bus.async_fire(BUS_EVENT_CHANGED, {"planner_id": pid, "sensor_refreshed": ent is not None})
+
+
+def _commit(hass: HomeAssistant, pid: str) -> None:
+    """Dopo una modifica alle regole: aggiorna sensore e UI, salva e ripianifica."""
+    ctx = hass.data[DOMAIN][pid]
+    _notify_and_refresh(hass, pid)
+    hass.async_create_task(ctx["storage"].async_save())
+    hass.async_create_task(ctx["scheduler"].async_reschedule_all())
 
 
 def _strip_empty_optional_fields(data: dict) -> dict:
@@ -315,9 +320,7 @@ def _prepare_rule(raw: dict) -> dict:
 async def _set_tag_enabled(hass: HomeAssistant, call: ServiceCall, enabled: bool) -> None:
     """Logica condivisa per enable_tag e disable_tag."""
     pid = _require_planner(hass, call)
-    ctx = hass.data[DOMAIN][pid]
-    storage = ctx["storage"]
-    scheduler = ctx["scheduler"]
+    storage = hass.data[DOMAIN][pid]["storage"]
 
     tag = str(call.data.get("tag") or "").strip().lower()
     if not tag:
@@ -334,9 +337,7 @@ async def _set_tag_enabled(hass: HomeAssistant, call: ServiceCall, enabled: bool
 
     if changed:
         storage.set_rules(rules)
-        _notify_and_refresh(hass, pid)
-        hass.async_create_task(storage.async_save())
-        hass.async_create_task(scheduler.async_reschedule_all())
+        _commit(hass, pid)
 
 
 # ---------------------------------------------------------------------------
@@ -347,22 +348,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def add_rule(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)
-        ctx = hass.data[DOMAIN][pid]
-        storage = ctx["storage"]
-        scheduler = ctx["scheduler"]
-
-        data = _prepare_rule(call.data)
-
-        storage.upsert_rule(data)
-        _notify_and_refresh(hass, pid)
-        hass.async_create_task(storage.async_save())
-        hass.async_create_task(scheduler.async_reschedule_all())
+        hass.data[DOMAIN][pid]["storage"].upsert_rule(_prepare_rule(call.data))
+        _commit(hass, pid)
 
     async def update_rule(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)
-        ctx = hass.data[DOMAIN][pid]
-        storage = ctx["storage"]
-        scheduler = ctx["scheduler"]
+        storage = hass.data[DOMAIN][pid]["storage"]
 
         data = _strip_empty_optional_fields(dict(call.data))
         rid = data.get(ATTR_ID)
@@ -424,43 +415,26 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         rules[idx] = new_rule
         storage.set_rules(rules)
-
-        _notify_and_refresh(hass, pid)
-        hass.async_create_task(storage.async_save())
-        hass.async_create_task(scheduler.async_reschedule_all())
+        _commit(hass, pid)
 
     async def remove_rule(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)
-        ctx = hass.data[DOMAIN][pid]
-        storage = ctx["storage"]
-        scheduler = ctx["scheduler"]
-
         rid = call.data.get(ATTR_ID)
-        if not storage.remove_rule(rid):
+        if not hass.data[DOMAIN][pid]["storage"].remove_rule(rid):
             raise HomeAssistantError(f"Regola '{rid}' non trovata.")
-
-        _notify_and_refresh(hass, pid)
-        hass.async_create_task(storage.async_save())
-        hass.async_create_task(scheduler.async_reschedule_all())
+        _commit(hass, pid)
 
     async def clear_rules(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)
-        ctx = hass.data[DOMAIN][pid]
-        storage = ctx["storage"]
-        scheduler = ctx["scheduler"]
-
-        storage.clear()
-        _notify_and_refresh(hass, pid)
-        hass.async_create_task(storage.async_save())
-        hass.async_create_task(scheduler.async_reschedule_all())
+        hass.data[DOMAIN][pid]["storage"].clear()
+        _commit(hass, pid)
 
     async def run_rule_now(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)
         ctx = hass.data[DOMAIN][pid]
-        storage = ctx["storage"]
 
         rid = call.data.get(ATTR_ID)
-        rule = next((r for r in storage.list_rules() if r.get(ATTR_ID) == rid), None)
+        rule = next((r for r in ctx["storage"].list_rules() if r.get(ATTR_ID) == rid), None)
         if not rule:
             raise HomeAssistantError(f"Regola '{rid}' non trovata.")
 
@@ -469,10 +443,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 f"Service non valido nella regola '{rid}'. Usa il formato 'dominio.servizio'."
             )
-        domain, svc = service.split(".", 1)
-        await hass.services.async_call(
-            domain, svc, rule.get(CONF_SERVICE_DATA) or {}, blocking=True
-        )
+        # Stesso percorso delle regole (contesto, evento chronotask_action),
+        # ma come comando esplicito agisce anche sulle entità in pausa.
+        await ctx["scheduler"].async_run_now(rule)
 
     async def reschedule_all(call: ServiceCall) -> None:
         pid = _require_planner(hass, call)

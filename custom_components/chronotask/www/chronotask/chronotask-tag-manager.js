@@ -1,3 +1,5 @@
+import { tagsToArray as _tagsToArray, makeTranslator } from './chronotask-common.js?v=__VERSION__';
+
 // FIX: variabile rinominata da CTW_VERSION a CTTM_VERSION (era undefined nel log)
 const CTTM_VERSION = '__VERSION__';
 
@@ -9,13 +11,6 @@ try {
   );
 } catch (_){}
 
-function _tagsToArray(raw){
-  if(!raw) return [];
-  if(Array.isArray(raw)) return raw.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);
-  const s=String(raw).trim();
-  if(!s) return [];
-  return s.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
-}
 
 // ---------------------------------------------------------------------------
 // i18n: stesso meccanismo di chronotask-weekly-card.js (dizionario duplicato
@@ -108,16 +103,7 @@ const CT_STRINGS={
     title:'标题', rulesEntityPlanner:'规则实体（计划器）', tag:'标签',
   },
 };
-function _ctLang(hass){
-  const raw=String(hass?.locale?.language||hass?.language||'en').toLowerCase();
-  const short=raw.split('-')[0];
-  return CT_STRINGS[short]?short:'en';
-}
-function _ctT(hass,key,...args){
-  const dict=CT_STRINGS[_ctLang(hass)];
-  const v=dict[key];
-  return typeof v==='function' ? v(...args) : (v??CT_STRINGS.en[key]??key);
-}
+const { lang: _ctLang, t: _ctT } = makeTranslator(CT_STRINGS);
 function _weekdayNamesShort(lang){
   const base=new Date(Date.UTC(2020,10,2));
   const fmt=new Intl.DateTimeFormat(lang||'en',{weekday:'short'});

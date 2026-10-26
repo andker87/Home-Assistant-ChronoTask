@@ -103,7 +103,6 @@ def test_scheduled_event_all_held_not_called_but_state_refreshed():
         Clock.current = at(0, 6, 30)
         hass, store, sched, sensor = await setup([rule("Sala", ["climate.a"])], states=["climate.a"])
         await sched.async_hold(["climate.a"], None, "window")
-        n = sensor.written if hasattr(sensor, "written") else 0
         await sched._execute_then_resched(store.list_rules()[0], "start")
         assert hass.services.calls == []
         assert not [e for e in hass.bus.events if e[0] == "chronotask_action"]

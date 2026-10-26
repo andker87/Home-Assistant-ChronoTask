@@ -1,3 +1,5 @@
+import { makeTranslator } from './chronotask-common.js?v=__VERSION__';
+
 const CTBK_VERSION = '__VERSION__';
 
 try {
@@ -103,10 +105,7 @@ const CTBK_STRINGS = {
   }
 };
 
-function _bkLang(hass) {
-  const l = String(hass?.language || hass?.locale?.language || navigator.language || 'en').toLowerCase().split('-')[0];
-  return CTBK_STRINGS[l] ? l : 'en';
-}
+const { lang: _bkLang, t: _bkT } = makeTranslator(CTBK_STRINGS);
 
 class ChronoTaskBackupCard extends HTMLElement {
   constructor() {
@@ -135,9 +134,7 @@ class ChronoTaskBackupCard extends HTMLElement {
   }
 
   _t(key, ...args) {
-    const dict = CTBK_STRINGS[_bkLang(this._hass)] || CTBK_STRINGS.en;
-    const v = dict[key] ?? CTBK_STRINGS.en[key] ?? key;
-    return typeof v === 'function' ? v(...args) : v;
+    return _bkT(this._hass, key, ...args);
   }
 
   _base() {

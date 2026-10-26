@@ -122,6 +122,19 @@ def install():
     _mod("homeassistant.components")
     _mod("homeassistant.components.sensor", SensorEntity=SensorEntity)
 
+    class CalendarEvent:
+        def __init__(self, start, end, summary, uid=None):
+            self.start, self.end, self.summary, self.uid = start, end, summary, uid
+
+    class CalendarEntity:
+        hass = None
+
+        def async_write_ha_state(self):
+            self.written = getattr(self, "written", 0) + 1
+
+    _mod("homeassistant.components.calendar", CalendarEntity=CalendarEntity, CalendarEvent=CalendarEvent)
+    _mod("homeassistant.helpers.entity", DeviceInfo=dict)
+
 
 class FakeBus:
     def __init__(self):

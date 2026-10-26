@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 
 from homeassistant.core import Context, HomeAssistant, callback
@@ -8,19 +8,18 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    BUS_EVENT_CHANGED,
     DOMAIN,
     EVENT_ACTION,
     CONF_TITLE,
     CONF_DAY,
     CONF_START,
     CONF_SERVICE,
-    CONF_SERVICE_DATA,
     CONF_ENABLED,
     ATTR_ID,
     CONF_END,
     CONF_END_DAY,
     CONF_END_SERVICE,
-    CONF_END_SERVICE_DATA,
 )
 from .slots import (
     all_target_entities,
@@ -28,6 +27,8 @@ from .slots import (
     effective_end_day,
     event_action,
     expand_rules,
+    next_occurrence,
+    parse_hm,
     restrict_entities,
     target_entities,
 )
@@ -65,85 +66,44 @@ class WeeklyScheduler:
         self._unsubs.clear()
 
         # expand_rules "appiattisce" ogni (regola, slot) in un dict con la
-        # stessa forma di prima (un day/start/end/end_day) più _slot_index,
-        # così _schedule_start/_schedule_end restano quasi invariati.
+        # stessa forma di prima (un day/start/end/end_day) più _slot_index.
         for rule in expand_rules(self.storage.list_rules()):
-            self._schedule_start(rule)
-            self._schedule_end(rule)
+            self._schedule(rule, "start")
+            self._schedule(rule, "end")
 
-    def _next_local_dt(self, weekday: int, hm: str) -> datetime | None:
-        """Calcola il prossimo datetime locale per il giorno/orario settimanale dato."""
-        now = dt_util.now()
-        try:
-            hh, mm = map(int, hm.split(":"))
-        except (ValueError, AttributeError):
+    def _schedule(self, rule: dict, part: str) -> None:
+        """Pianifica l'evento 'start' o 'end' di una fascia (regola espansa)."""
+        if not rule.get(CONF_ENABLED, True):
+            return
+        if part == "start":
+            if not rule.get(CONF_SERVICE) or not rule.get(CONF_START):
+                return
+            day, hm = int(rule[CONF_DAY]), rule[CONF_START]
+        else:
+            if not rule.get(CONF_END) or not rule.get(CONF_END_SERVICE):
+                return
+            day = effective_end_day(
+                rule[CONF_DAY], rule.get(CONF_START), rule[CONF_END], rule.get(CONF_END_DAY)
+            )
+            hm = rule[CONF_END]
+        parsed = parse_hm(hm)
+        if parsed is None:
             _LOGGER.warning("ChronoTask: orario non valido '%s'", hm)
-            return None
-
-        days_ahead = (weekday - now.weekday()) % 7
-        cand = now.replace(hour=hh, minute=mm, second=0, microsecond=0) + timedelta(days=days_ahead)
-        if cand <= now:
-            cand += timedelta(days=7)
-        return cand
-
-    def _schedule_start(self, rule: dict) -> None:
-        if not rule.get(CONF_ENABLED, True):
             return
-        if not rule.get(CONF_SERVICE) or not rule.get(CONF_START):
-            return
+        next_local = next_occurrence(dt_util.now(), day, parsed)
+        key = f"{rule.get(ATTR_ID)}:{rule.get('_slot_index', 0)}:{part}"
 
-        rule_id = rule.get(ATTR_ID)
-        slot_idx = rule.get("_slot_index", 0)
-        key = f"{rule_id}:{slot_idx}:start"
-        next_local = self._next_local_dt(int(rule[CONF_DAY]), rule[CONF_START])
-        if not next_local:
-            return
-        next_utc = dt_util.as_utc(next_local)
-
-        # Cattura una copia snapshot della regola per evitare riferimenti stale
+        # Copia della regola al momento della pianificazione: evita riferimenti stale
         rule_snapshot = dict(rule)
 
         @callback
         def _fire(_now):
-            self.hass.async_create_task(
-                self._execute_then_resched(rule_snapshot, part="start")
-            )
+            self.hass.async_create_task(self._execute_then_resched(rule_snapshot, part=part))
 
-        self._unsubs[key] = async_track_point_in_utc_time(self.hass, _fire, next_utc)
+        self._unsubs[key] = async_track_point_in_utc_time(self.hass, _fire, dt_util.as_utc(next_local))
         _LOGGER.debug(
-            "ChronoTask: pianificato START '%s' per %s",
-            rule.get("title", rule_id), next_local.strftime("%a %H:%M"),
-        )
-
-    def _schedule_end(self, rule: dict) -> None:
-        if not rule.get(CONF_ENABLED, True):
-            return
-        if not rule.get(CONF_END) or not rule.get(CONF_END_SERVICE):
-            return
-
-        rule_id = rule.get(ATTR_ID)
-        slot_idx = rule.get("_slot_index", 0)
-        end_day = effective_end_day(
-            rule[CONF_DAY], rule.get(CONF_START), rule[CONF_END], rule.get(CONF_END_DAY)
-        )
-        key = f"{rule_id}:{slot_idx}:end"
-        next_local = self._next_local_dt(end_day, rule[CONF_END])
-        if not next_local:
-            return
-        next_utc = dt_util.as_utc(next_local)
-
-        rule_snapshot = dict(rule)
-
-        @callback
-        def _fire(_now):
-            self.hass.async_create_task(
-                self._execute_then_resched(rule_snapshot, part="end")
-            )
-
-        self._unsubs[key] = async_track_point_in_utc_time(self.hass, _fire, next_utc)
-        _LOGGER.debug(
-            "ChronoTask: pianificato END '%s' per %s",
-            rule.get("title", rule_id), next_local.strftime("%a %H:%M"),
+            "ChronoTask: pianificato %s '%s' per %s",
+            part.upper(), rule.get(CONF_TITLE, rule.get(ATTR_ID)), next_local.strftime("%a %H:%M"),
         )
 
     async def _execute_then_resched(self, rule: dict, part: str) -> None:
@@ -173,10 +133,7 @@ class WeeklyScheduler:
                 None,
             )
             if fresh:
-                if part == "start":
-                    self._schedule_start(fresh)
-                else:
-                    self._schedule_end(fresh)
+                self._schedule(fresh, part)
 
     # ------------------------------------------------------------------
     # Esecuzione di un'azione, rispettando le pause
@@ -189,14 +146,19 @@ class WeeklyScheduler:
         l'entità cambia stato l'attributo 'entities' mostra già lo stato atteso
         nuovo, e un'automazione che confronta stato reale e atteso non scambia
         l'avvio di una fascia per un cambio manuale."""
+        refreshed = False
         try:
             ctx = self.hass.data.get(DOMAIN, {}).get(self.planner_id) if self.planner_id else None
             sensor = ctx.get("sensor_entity") if isinstance(ctx, dict) else None
             if sensor is not None:
                 await sensor.async_refresh_state()
+                refreshed = True
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("ChronoTask: aggiornamento sensore fallito: %s", err)
-        self.hass.bus.async_fire(f"{DOMAIN}_changed", {"planner_id": self.planner_id})
+        # sensor_refreshed: il sensore è già aggiornato, non deve ricalcolarsi di nuovo
+        self.hass.bus.async_fire(
+            BUS_EVENT_CHANGED, {"planner_id": self.planner_id, "sensor_refreshed": refreshed}
+        )
 
     async def _run_action(
         self,
@@ -204,12 +166,16 @@ class WeeklyScheduler:
         part: str,
         only_entities: list[str] | None = None,
         label: str | None = None,
+        respect_holds: bool = True,
+        blocking: bool = False,
     ) -> tuple[bool, list[str]]:
         """Chiama il servizio di 'start' o 'end' di una regola.
 
         - only_entities None (evento pianificato): toglie le entità in pausa; se
           non ne resta nessuna il servizio non viene chiamato.
         - only_entities dato (resume/resync): restringe l'azione a quelle entità.
+        - respect_holds False (run_rule_now): comando esplicito, agisce anche
+          sulle entità in pausa.
 
         Restituisce (eseguita, entità effettivamente interessate)."""
         service_str, data = event_action(rule, part)
@@ -228,7 +194,7 @@ class WeeklyScheduler:
             if not entity_ids:
                 return False, []
             data = restrict_entities(data, entity_ids)
-        elif targets:
+        elif targets and respect_holds:
             held = self.storage.list_holds()
             entity_ids = [e for e in targets if e not in held]
             if not entity_ids:
@@ -245,7 +211,7 @@ class WeeklyScheduler:
                     part, title, ", ".join(e for e in targets if e not in entity_ids),
                 )
         else:
-            entity_ids = []
+            entity_ids = list(targets)
 
         domain, service = service_str.split(".", 1)
         await self._refresh_state()
@@ -266,9 +232,15 @@ class WeeklyScheduler:
             "ChronoTask [%s] '%s': chiamo %s.%s con %s", label or part, title, domain, service, data,
         )
         await self.hass.services.async_call(
-            domain, service, data, blocking=False, context=context
+            domain, service, data, blocking=blocking, context=context
         )
         return True, entity_ids
+
+    async def async_run_now(self, rule: dict) -> None:
+        """Esegue subito l'azione di inizio di una regola (run_rule_now): è un
+        comando esplicito, quindi agisce anche sulle entità in pausa, e attende
+        l'esito così un errore del servizio arriva a chi l'ha chiamato."""
+        await self._run_action(rule, "start", label="run_now", respect_holds=False, blocking=True)
 
     # ------------------------------------------------------------------
     # Stato corrente, pause (hold), resume e resync
