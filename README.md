@@ -93,6 +93,7 @@ ChronoTask provides:
 - 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
 - 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
 - 🔲 **Lane layout** — overlapping rules are shown side by side instead of stacking
+- 💾 **Export / import rules** — download all rules as a JSON file and load it back (this or another Home Assistant), with a dedicated card
 - 🔎 **Searchable entity picker** — find an entity by name or id, with icon and friendly name
 - 🎨 **Colors and icons** for quick visual recognition
 - 🏷 **Tags** to organize and manage groups of rules
@@ -127,6 +128,11 @@ ChronoTask is not just a card, but a small ecosystem:
 - Rule creation and editing directly from the UI, with a searchable entity picker
 - Fully usable on desktop and mobile
 
+### 💾 Backup Card
+- Export all rules to a JSON file and import them back (add to existing rules, or replace all)
+- Invalid rules in a file are skipped and reported; a rule whose id already exists is never overwritten (it gets a new id)
+- Also available as services, see below
+
 ### 🏷 Tag Manager Card
 - Bulk rule management via tags
 - Enable / disable entire groups with one click
@@ -155,6 +161,13 @@ ChronoTask includes two custom Lovelace cards. The integration registers them **
 After the restart, the cards appear in the Custom card section when adding a new card to a dashboard.
 
 > If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries.
+
+#### 💾 Backup and restore
+Add the card **ChronoTask Backup** to a dashboard (`type: custom:chronotask-backup-card`, optional `planner_id` and `title`). *Export rules* downloads a `.json` file; *Import rules* loads one and lets you choose between **Add to existing** and **Replace all**.
+
+The same is available as services, e.g. to automate a periodic backup:
+- `chronotask.export_rules` — returns the document (use it as a response variable)
+- `chronotask.import_rules` — `rules` (the list from an export) and `mode`: `merge` (default) or `replace`; a `replace` with no valid rule is refused and changes nothing
 
 #### 🌙 Overnight and multi-day rules
 No extra setting is needed for a slot that crosses midnight: if the end time is earlier than the start time (e.g. Monday 22:00 → 06:00) and *End day* is left on “Same as start”, the end action runs the **next day**. For slots longer than that (e.g. Monday 09:00 → Thursday 09:00) choose the *End day* explicitly.
@@ -193,7 +206,6 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### Coming soon
 
-- 💾 Export / import rules — backup, restore, and share configurations between HA instances (first, so your rules are safe before data-model changes)
 - 📅 Rule validity period — valid_from / valid_until to define seasonal or temporary rules (e.g. summer mode, school schedule)
 
 ### On the roadmap
