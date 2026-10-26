@@ -3,9 +3,12 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, PLANNER_SENSOR_SUFFIX
+from .slots import build_entities_view
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,14 +22,18 @@ class PlannerRulesSensor(SensorEntity):
     _attr_icon = "mdi:calendar-clock"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "regole"
+    # Attributi grandi e che cambiano spesso: non servono nello storico, le
+    # automazioni leggono lo stato attuale.
+    _unrecorded_attributes = frozenset({"rules", "entities"})
 
     def __init__(self, entry_id: str, name: str) -> None:
         self._entry_id = entry_id
         self._name = name
         self._attr_name = f"{name} Rules"
         self._attr_unique_id = f"{PLANNER_SENSOR_SUFFIX}_{entry_id}"
-        self._capabilities = {"end_action": True, "tags": True, "multi_slot": True}
+        self._capabilities = {"end_action": True, "tags": True, "multi_slot": True, "hold": True}
         self._unsub = None
+        self._unsub_next = None
         self._attr_extra_state_attributes = {}
 
     async def async_added_to_hass(self) -> None:
@@ -46,6 +53,9 @@ class PlannerRulesSensor(SensorEntity):
         if self._unsub:
             self._unsub()
             self._unsub = None
+        if self._unsub_next:
+            self._unsub_next()
+            self._unsub_next = None
         try:
             ctx = self.hass.data[DOMAIN].get(self._entry_id)
             if isinstance(ctx, dict) and ctx.get("sensor_entity") is self:
@@ -64,8 +74,12 @@ class PlannerRulesSensor(SensorEntity):
         try:
             storage = self.hass.data[DOMAIN][self._entry_id]["storage"]
             rules = storage.list_rules()
+            now = dt_util.now()
+            entities = build_entities_view(rules, storage.list_holds(), now)
+            self._schedule_next_refresh(entities)
             self._attr_extra_state_attributes = {
                 "rules": rules,
+                "entities": entities,
                 "planner_id": self._entry_id,
                 "capabilities": self._capabilities,
                 "total_rules": len(rules),
@@ -73,6 +87,30 @@ class PlannerRulesSensor(SensorEntity):
             }
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("ChronoTask: errore aggiornamento sensore: %s", err)
+
+    def _schedule_next_refresh(self, entities: dict) -> None:
+        """Riaggiorna 'entities' al prossimo cambio di stato di qualunque entità,
+        anche quando non scatta nessun servizio (es. fine fascia senza
+        end_service): così 'scheduled' non resta indietro."""
+        if self._unsub_next:
+            self._unsub_next()
+            self._unsub_next = None
+        if getattr(self, "hass", None) is None:
+            return
+        times = []
+        for entry in entities.values():
+            parsed = dt_util.parse_datetime(entry["next_change"]) if entry.get("next_change") else None
+            if parsed:
+                times.append(parsed)
+        if not times:
+            return
+
+        @callback
+        def _fire(_now):
+            self._unsub_next = None
+            self.hass.async_create_task(self.async_refresh_state())
+
+        self._unsub_next = async_track_point_in_utc_time(self.hass, _fire, dt_util.as_utc(min(times)))
 
     async def async_refresh_state(self) -> None:
         await self.async_update()

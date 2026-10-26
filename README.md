@@ -93,6 +93,7 @@ ChronoTask provides:
 - 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
 - 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
 - 🔲 **Lane layout** — overlapping rules are shown side by side instead of stacking
+- ⏸ **Hold / resume / resync** — pause single entities (manual override, open window, away) and let the schedule take over again when the pause ends, with the current expected state exposed for automations
 - 💾 **Export / import rules** — download all rules as a JSON file and load it back (this or another Home Assistant), with a dedicated card
 - 🔎 **Searchable entity picker** — find an entity by name or id, with icon and friendly name
 - 🎨 **Colors and icons** for quick visual recognition
@@ -169,6 +170,141 @@ The same is available as services, e.g. to automate a periodic backup:
 - `chronotask.export_rules` — returns the document (use it as a response variable)
 - `chronotask.import_rules` — `rules` (the list from an export) and `mode`: `merge` (default) or `replace`; a `replace` with no valid rule is refused and changes nothing
 
+#### ⏸ Hold, resume and resync
+ChronoTask is event-driven: at the start of a slot it calls `service`, at the end `end_service`. Three services let other automations coexist with the schedule, for **any** service that targets entities (`entity_id` or `target.entity_id`; rules that target areas or devices cannot be held):
+
+- `chronotask.hold` — `entity_id` (one or more), `minutes` *or* `until` (optional: without them the hold never expires), `reason` (free text, e.g. `override`, `window`, `away`). While an entity is held, rules **do not touch it**: if a rule targets several entities only the held ones are skipped. A new hold replaces the previous one; when a timed hold expires the entity is resumed automatically. Holds survive restarts.
+- `chronotask.resume` — `entity_id`, `apply` (default `true`). Removes the hold and, if `apply`, runs the action of the **current state**: the last past event (up to 7 days back) among the *enabled* rules that target the entity — a slot start runs the start action, a slot end runs the end action; overnight slots, explicit end days and slots without an end work as expected. Returns `{entity_id: {applied: start|end|null, rule: title|null}}`. Entities that are `unavailable`/`unknown` are skipped with a warning, no retry.
+- `chronotask.resync` — `entity_id` (optional; default: every entity targeted by the planner). Applies the current state to the entities that are not held. It is **never called automatically**: call it from an automation after Home Assistant starts, or after enabling a group of rules (`enable_tag` does not apply anything by itself).
+
+At startup, holds that expired while Home Assistant was off are simply removed (nothing is applied: entities may not be available yet — use `resync`).
+
+The sensor `sensor.<planner>_rules` exposes the current state of every targeted entity in the attribute `entities`, updated **before** a rule calls its service, so an automation can compare the real state with the expected one to tell a manual change from a ChronoTask action:
+
+```yaml
+entities:
+  climate.trv_living:
+    scheduled: start            # start | end | null (no enabled rule)
+    rule: Living room
+    since: "2026-11-03T06:40:00+01:00"
+    expected_service: climate.set_temperature
+    expected_data: {temperature: 25, hvac_mode: heat}   # without entity_id
+    next_change: "2026-11-03T07:10:00+01:00"
+    hold: true
+    hold_until: "2026-11-03T07:25:00+01:00"             # null = no expiry
+    hold_reason: override
+```
+
+Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
+
+**Good to know**
+- Only rules that name an `entity_id` (in the data or in `target`) can be held; for rules that target areas or devices `hold` has no effect, and they don't appear in `entities`.
+- A `resume` that finds the entity `unavailable`/`unknown` logs a warning and does not retry: that's why a `resync` after startup is recommended.
+- Holds are a temporary state: they are not included in export/import.
+- With an explicit `planner_id`, `hold` also works on entities that have no rule (e.g. a room without a schedule); `resume` then returns `applied: null`.
+- For simple cases `hold(minutes: N)` is all you need. Use a Home Assistant `timer` instead when you want to see the remaining time on a dashboard, or when the end of the pause must run your own logic (is a window still open? are you away?) rather than a plain `resume`.
+
+<details>
+<summary><b>Real-world example: Tado-style radiator valves</b> (manual override, open windows, away, restart)</summary>
+
+<br>
+
+This is how ChronoTask replaces the Tado app logic for thermostatic valves integrated via HomeKit (`off`/`heat` only), with the Tado app set not to intervene. Behaviour to reproduce: a weekly schedule; after a **manual change** the valve is left alone for N minutes (different per room), then goes back to the schedule; with a **window open** for 40 s the valve turns off and stays off until the window is closed, then goes back to the schedule.
+
+**Rules: one per room, with multiple slots** (in the real setup 25 single-day rules became 4):
+
+```yaml
+action: chronotask.add_rule
+data:
+  planner_id: <planner_id>
+  title: Kids room
+  tags: [kids_room, heating]
+  service: climate.set_temperature
+  service_data: {entity_id: climate.trv_kids_room, hvac_mode: heat, temperature: 21}
+  end_service: climate.turn_off
+  end_service_data: {entity_id: climate.trv_kids_room}
+  slots:
+    - {day: 0, start: "06:30", end: "07:00"}
+    - {day: 1, start: "06:30", end: "07:00"}
+    # ...
+    - {day: 6, start: "21:15", end: "21:45"}
+```
+
+**The key piece: one "back to schedule" script, called by every scenario:**
+
+```yaml
+script:
+  trv_back_to_schedule:
+    mode: parallel
+    fields:
+      trv: {}
+    sequence:
+      - variables:
+          room: "{{ trv.split('.')[1][4:] }}"        # climate.trv_living -> living
+      - action: timer.cancel
+        target: {entity_id: "timer.override_trv_{{ room }}"}
+      - if:
+          - "{{ is_state('input_boolean.away_mode', 'on') or is_state('binary_sensor.windows_' ~ room, 'on') }}"
+        then:
+          - action: chronotask.hold
+            data:
+              planner_id: <planner_id>
+              entity_id: "{{ trv }}"
+              reason: "{{ 'away' if is_state('input_boolean.away_mode', 'on') else 'window' }}"
+          - action: climate.turn_off
+            target: {entity_id: "{{ trv }}"}
+        else:
+          - action: chronotask.resume
+            data: {planner_id: <planner_id>, entity_id: "{{ trv }}"}
+            response_variable: resumed
+          # no enabled rule (heating season off, room without a schedule) -> off
+          - if: "{{ resumed[trv].applied is none }}"
+            then:
+              - action: climate.turn_off
+                target: {entity_id: "{{ trv }}"}
+```
+
+**Telling a manual change from a scheduled one** — compare the real state with the expected one from `entities` (e.g. in `custom_templates/heating.jinja`):
+
+```jinja
+{%- macro trv_expected(trv) -%}
+  {%- set room = trv.split('.')[1][4:] -%}
+  {%- set sched = (state_attr('sensor.heating_rules', 'entities') or {}).get(trv) or {} -%}
+  {%- if is_state('input_boolean.away_mode', 'on')
+        or is_state('binary_sensor.windows_' ~ room, 'on')
+        or not is_state('input_boolean.heating', 'on')
+        or sched.get('scheduled') is none -%}
+    {{- {'mode': 'off', 'temp': none} | to_json -}}
+  {%- else -%}
+    {%- set data = sched.get('expected_data') or {} -%}
+    {%- set mode = data.get('hvac_mode') or ('off' if (sched.get('expected_service') or '').endswith('turn_off') else 'heat') -%}
+    {{- {'mode': mode, 'temp': data.get('temperature') if mode != 'off' else none} | to_json -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro trv_off_schedule(trv) -%}
+  {%- set expected = trv_expected(trv) | from_json -%}
+  {%- set s = states(trv) -%}
+  {{- s in ['heat', 'off'] and (s != expected.mode
+        or (s == 'heat' and expected.temp is not none
+            and (state_attr(trv, 'temperature') | float(0) - expected.temp | float(0)) | abs > 0.25)) -}}
+{%- endmacro -%}
+```
+
+The override automation triggers on a change of the valve's mode or target temperature (room temperature readings are ignored) and waits 20 s to let the valve settle. If the valve is now off schedule → `chronotask.hold(reason: override)` plus `timer.start` with the duration from `input_number.override_trv_<room>`; if it was put back on schedule by hand → the override is over, call the script. No "who did it" flag is needed: any change that takes the valve off schedule — app, voice assistant, the physical knob — is an override. This works because ChronoTask updates the expected state **before** calling its service.
+
+**All the other scenarios call the same script:**
+
+| Scenario | Trigger | Effect |
+|---|---|---|
+| Override ends | `timer.finished` of `timer.override_trv_*` | back to schedule |
+| Windows | `binary_sensor.windows_<room>` (template with `delay_on: 40s`; several windows per room in OR, e.g. an open-plan living room + kitchen) | open: hold `window` and off; closed: back to schedule (an override in progress is cancelled) |
+| Heating season | `input_boolean.heating` | `enable_tag` / `disable_tag heating`, then the script on every valve |
+| Away | `input_boolean.away_mode` | leaving: hold `away` and off; back home: back to schedule |
+| Home Assistant start | `homeassistant` start + 2 min | the script on every valve without an override in progress (a "smart" `resync`) |
+
+</details>
+
 #### 🌙 Overnight and multi-day rules
 No extra setting is needed for a slot that crosses midnight: if the end time is earlier than the start time (e.g. Monday 22:00 → 06:00) and *End day* is left on “Same as start”, the end action runs the **next day**. For slots longer than that (e.g. Monday 09:00 → Thursday 09:00) choose the *End day* explicitly.
 
@@ -210,6 +346,8 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 ### On the roadmap
 
+- ⏸ Hold in the card — a badge on held entities with reason and remaining time, a "resume" button, and a "now" line per entity (scheduled on/off, next change)
+- 🚀 `chronotask.boost` — run a rule's start action for N minutes and then resume, without waiting for the slot (like the "boost" button of thermostats)
 - ⚡ Execution conditions — optionally run a rule only if a specific HA entity is in a given state (rules without a condition keep running as usual)
 - 🔔 Trigger notifications — optional, per rule and off by default; an HA event is fired on every execution so automations can hook in without any notification
 - 🔁 Non-weekly recurrence — support for "every N days" or "first Monday of the month"
@@ -219,6 +357,10 @@ ChronoTask is a work in progress, actively developed based on real-world usage a
 
 - 📊 Daily / compact view — agenda-style card, useful on mobile dashboards
 - 🔀 Drag & drop rescheduling — move a block directly from the planner card
+- ✋ Optional built-in manual-override detection — a per-rule setting (e.g. `manual_hold_minutes`): when a targeted entity changes without a ChronoTask context, it is held automatically (for simple cases without windows or away logic)
+- 🧩 More automation helpers — a native trigger/condition on an entity's scheduled state, and an optional per-planner `resync_on_start` with a configurable delay
+- 🔄 Optional retry of `resume` when the entity becomes available again, instead of just a warning
+- 🗂 Seasons / profiles — mutually exclusive groups of tags (e.g. "winter" and "winter holidays") switched with a single service
 
 ---
 
@@ -229,6 +371,7 @@ ChronoTask was born from a real need and grows through collaboration.
 - Report bugs and issues via **GitHub Issues**
 - Propose ideas and improvements
 - Open a **Pull Request** if you want to contribute
+- Run the tests (no Home Assistant needed, only `voluptuous`): `python3 tests/test_slots_state.py`, `python3 tests/test_holds.py`, `python3 tests/test_import_export.py`
 
 ChronoTask does not aim to replace anything.  
 It simply aims to make **weekly scheduling in Home Assistant readable, manageable and fully local**.

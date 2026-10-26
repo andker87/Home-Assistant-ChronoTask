@@ -35,10 +35,20 @@ def _validate_rule(rule: Any) -> bool:
 class PlannerStorage:
     def __init__(self, hass: HomeAssistant, planner_id: str):
         self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_BASE}.{planner_id}")
-        self._data: dict[str, Any] = {"rules": []}
+        self._data: dict[str, Any] = {"rules": [], "holds": {}}
 
     async def async_load(self) -> None:
         data = await self._store.async_load()
+        # Pause persistenti (v1.7): {entity_id: {until, reason, since}}.
+        # Si conservano a prescindere dalle regole, così un file senza "holds"
+        # (versioni precedenti) o con regole illeggibili non le perde.
+        holds: dict[str, Any] = {}
+        if isinstance(data, dict) and isinstance(data.get("holds"), dict):
+            holds = {
+                str(eid).lower(): dict(h)
+                for eid, h in data["holds"].items()
+                if isinstance(h, dict)
+            }
         if isinstance(data, dict) and "rules" in data:
             raw_rules = data.get("rules", [])
             if isinstance(raw_rules, list):
@@ -51,10 +61,12 @@ class PlannerStorage:
                             "ChronoTask: regola %d ignorata (dati non validi): %s",
                             i, rule,
                         )
-                self._data = {"rules": valid_rules}
+                self._data = {"rules": valid_rules, "holds": holds}
             else:
                 _LOGGER.warning("ChronoTask: formato storage non valido, reset.")
-                self._data = {"rules": []}
+                self._data = {"rules": [], "holds": holds}
+        else:
+            self._data["holds"] = holds
 
         # Migrazione multi-slot: regole salvate prima di v1.2.0 non hanno
         # "slots" — gliene sintetizziamo uno solo dai campi day/start/end/
@@ -107,5 +119,22 @@ class PlannerStorage:
         return len(rules) != before
 
     def clear(self) -> None:
-        """Rimuove tutte le regole."""
+        """Rimuove tutte le regole (le pause restano: sono per entità)."""
         self._data["rules"] = []
+
+    # --- pause (hold) -----------------------------------------------------
+
+    def list_holds(self) -> dict[str, dict]:
+        """Copia delle pause attive: {entity_id: {until, reason, since}}."""
+        return copy.deepcopy(self._data.get("holds") or {})
+
+    def get_hold(self, entity_id: str) -> dict | None:
+        hold = (self._data.get("holds") or {}).get(str(entity_id).lower())
+        return copy.deepcopy(hold) if hold else None
+
+    def set_hold(self, entity_id: str, hold: dict) -> None:
+        self._data.setdefault("holds", {})[str(entity_id).lower()] = copy.deepcopy(hold)
+
+    def remove_hold(self, entity_id: str) -> bool:
+        """Toglie la pausa. Restituisce True se c'era."""
+        return (self._data.get("holds") or {}).pop(str(entity_id).lower(), None) is not None
