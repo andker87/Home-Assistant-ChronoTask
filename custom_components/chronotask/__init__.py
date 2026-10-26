@@ -140,7 +140,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     storage = PlannerStorage(hass, entry.entry_id)
     await storage.async_load()
 
-    scheduler = WeeklyScheduler(hass, storage)
+    scheduler = WeeklyScheduler(hass, storage, entry.entry_id)
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -156,6 +156,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.services.has_service(DOMAIN, "add_rule"):
         await async_setup_services(hass)
 
+    # Pause (hold): quelle scadute durante lo spegnimento si tolgono senza
+    # applicare nulla, le altre riprendono il loro timer di scadenza.
+    await scheduler.async_setup_holds()
+
     # Pianifica tutte le regole
     await scheduler.async_reschedule_all()
     return True
@@ -165,5 +169,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload della ConfigEntry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
+        ctx = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if isinstance(ctx, dict) and ctx.get("scheduler"):
+            await ctx["scheduler"].async_stop()
     return unload_ok

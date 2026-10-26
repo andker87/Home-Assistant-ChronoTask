@@ -21,6 +21,7 @@ FRONTEND_FILES = (
 )
 
 DOMAIN = "chronotask"
+EVENT_ACTION = "chronotask_action"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
 PLANNER_SENSOR_SUFFIX = "chronotask_rules"
 STORAGE_KEY_BASE = "chronotask.rules"
@@ -73,6 +74,9 @@ SERVICE_ENABLE_TAG = "enable_tag"
 SERVICE_DISABLE_TAG = "disable_tag"
 SERVICE_EXPORT = "export_rules"
 SERVICE_IMPORT = "import_rules"
+SERVICE_HOLD = "hold"
+SERVICE_RESUME = "resume"
+SERVICE_RESYNC = "resync"
 EXPORT_FORMAT = "chronotask-export"
 EXPORT_VERSION = 1
 

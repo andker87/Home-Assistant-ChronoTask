@@ -4,6 +4,7 @@ import uuid
 import copy
 import logging
 import re
+from datetime import timedelta
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -23,6 +24,9 @@ from .const import (
     SERVICE_DISABLE_TAG,
     SERVICE_EXPORT,
     SERVICE_IMPORT,
+    SERVICE_HOLD,
+    SERVICE_RESUME,
+    SERVICE_RESYNC,
     EXPORT_FORMAT,
     EXPORT_VERSION,
     INTEGRATION_VERSION,
@@ -43,7 +47,7 @@ from .const import (
     ATTR_ID,
     ATTR_PLANNER_ID,
 )
-from .slots import slot_from_flat, mirror_flat_from_slots
+from .slots import all_target_entities, slot_from_flat, mirror_flat_from_slots
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,6 +147,25 @@ _IMPORT_KEYS = (
     CONF_ENABLED, CONF_TAGS, CONF_COLOR, CONF_ICON,
 )
 
+_HOLD_SCHEMA = vol.All(
+    _BASE_PLANNER.extend({
+        vol.Required("entity_id"): cv.entity_ids,
+        vol.Optional("minutes"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Optional("until"): cv.datetime,
+        vol.Optional("reason"): cv.string,
+    }),
+    cv.has_at_most_one_key("minutes", "until"),
+)
+
+_RESUME_SCHEMA = _BASE_PLANNER.extend({
+    vol.Required("entity_id"): cv.entity_ids,
+    vol.Optional("apply", default=True): cv.boolean,
+})
+
+_RESYNC_SCHEMA = _BASE_PLANNER.extend({
+    vol.Optional("entity_id"): cv.entity_ids,
+})
+
 _TAG_SCHEMA = _BASE_PLANNER.extend({
     vol.Required("tag"): cv.string,
 })
@@ -236,6 +259,30 @@ def _clean_slot(slot: dict) -> dict:
         out[CONF_END] = slot[CONF_END]
     if slot.get(CONF_END_DAY) is not None:
         out[CONF_END_DAY] = slot[CONF_END_DAY]
+    return out
+
+
+def _planners_for_entities(
+    hass: HomeAssistant, call: ServiceCall, entity_ids: list[str]
+) -> dict[str, list[str]]:
+    """{planner_id: [entità che quel planner gestisce]}.
+
+    Con 'planner_id' esplicito si usa solo quel planner (tutte le entità
+    richieste). Senza, ogni planner prende le entità che ha come bersaglio di
+    una regola o che ha in pausa; le entità di nessun planner non compaiono."""
+    all_entries = hass.data.get(DOMAIN, {})
+    pid = call.data.get(ATTR_PLANNER_ID)
+    if pid:
+        if pid not in all_entries:
+            raise HomeAssistantError(f"Planner '{pid}' non trovato.")
+        return {pid: list(entity_ids)}
+    out: dict[str, list[str]] = {}
+    for p, ctx in all_entries.items():
+        storage = ctx["storage"]
+        managed = set(all_target_entities(storage.list_rules())) | set(storage.list_holds())
+        mine = [e for e in entity_ids if e in managed]
+        if mine:
+            out[p] = mine
     return out
 
 
@@ -505,6 +552,60 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "total": len(storage.list_rules()),
         }
 
+    async def hold(call: ServiceCall) -> None:
+        """Mette in pausa una o più entità: le regole non le toccano finché non
+        scade la pausa o si chiama resume. Una pausa nuova sostituisce la vecchia."""
+        entity_ids = list(call.data["entity_id"])
+        now = dt_util.now()
+        until = None
+        if call.data.get("minutes") is not None:
+            until = now + timedelta(minutes=call.data["minutes"])
+        elif call.data.get("until") is not None:
+            until = dt_util.as_local(call.data["until"])
+            if until <= now:
+                raise HomeAssistantError("'until' è nel passato: nessuna pausa creata.")
+        mapping = _planners_for_entities(hass, call, entity_ids)
+        missing = [e for e in entity_ids if not any(e in v for v in mapping.values())]
+        if missing:
+            raise HomeAssistantError(
+                "Nessun planner ha regole per: " + ", ".join(missing)
+                + ". Specifica 'planner_id' per metterle comunque in pausa."
+            )
+        for pid, ents in mapping.items():
+            await hass.data[DOMAIN][pid]["scheduler"].async_hold(ents, until, call.data.get("reason"))
+
+    def _merge_results(into: dict, new: dict) -> None:
+        for eid, res in new.items():
+            if eid not in into or (res.get("applied") and not into[eid].get("applied")):
+                into[eid] = res
+
+    async def resume(call: ServiceCall) -> dict:
+        """Toglie la pausa e, con apply (default), applica lo stato corrente."""
+        entity_ids = list(call.data["entity_id"])
+        apply = call.data["apply"]
+        result: dict = {e: {"applied": None, "rule": None} for e in entity_ids}
+        for pid, ents in _planners_for_entities(hass, call, entity_ids).items():
+            _merge_results(result, await hass.data[DOMAIN][pid]["scheduler"].async_resume(ents, apply))
+        return result
+
+    async def resync(call: ServiceCall) -> dict:
+        """Applica lo stato corrente alle entità non in pausa."""
+        entity_ids = call.data.get("entity_id")
+        result: dict = {}
+        if entity_ids is None:
+            pid = call.data.get(ATTR_PLANNER_ID)
+            if pid and pid not in hass.data.get(DOMAIN, {}):
+                raise HomeAssistantError(f"Planner '{pid}' non trovato.")
+            pids = [pid] if pid else list(hass.data.get(DOMAIN, {}))
+            for p in pids:
+                _merge_results(result, await hass.data[DOMAIN][p]["scheduler"].async_resync(None))
+            return result
+        entity_ids = list(entity_ids)
+        result = {e: {"applied": None, "rule": None} for e in entity_ids}
+        for pid, ents in _planners_for_entities(hass, call, entity_ids).items():
+            _merge_results(result, await hass.data[DOMAIN][pid]["scheduler"].async_resync(ents))
+        return result
+
     hass.services.async_register(DOMAIN, SERVICE_ADD, add_rule, schema=_ADD_RULE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_UPDATE, update_rule, schema=_UPDATE_RULE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_REMOVE, remove_rule, schema=_RULE_ID_SCHEMA)
@@ -522,4 +623,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.OPTIONAL,
     )
 
-    _LOGGER.debug("ChronoTask: %d servizi registrati", 10)
+    hass.services.async_register(DOMAIN, SERVICE_HOLD, hold, schema=_HOLD_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_RESUME, resume, schema=_RESUME_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_RESYNC, resync, schema=_RESYNC_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    _LOGGER.debug("ChronoTask: %d servizi registrati", 13)

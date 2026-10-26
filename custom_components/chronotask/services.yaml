@@ -337,3 +337,97 @@ import_rules:
           options:
             - merge
             - replace
+
+hold:
+  name: Hold entities
+  description: >-
+    Pauses entities: scheduled rules will not touch them until the hold expires
+    or "Resume" is called. A new hold replaces an existing one on the same
+    entity. When a hold with a duration expires the entity is resumed
+    automatically (the current scheduled state is applied). Works with any
+    service whose data has an entity_id (or target.entity_id); rules that
+    target areas or devices cannot be held.
+  fields:
+    entity_id:
+      name: Entities
+      description: One or more entities to pause.
+      required: true
+      selector:
+        entity:
+          multiple: true
+    minutes:
+      name: Minutes
+      description: Duration of the hold. Omit both "minutes" and "until" for a hold without expiry.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 10080
+          mode: box
+          unit_of_measurement: min
+    until:
+      name: Until
+      description: Date and time the hold ends (alternative to "minutes").
+      required: false
+      selector:
+        datetime:
+    reason:
+      name: Reason
+      description: Free text stored with the hold (e.g. override, window, away).
+      required: false
+      selector:
+        text:
+    planner_id:
+      name: Planner ID
+      description: Only needed to force a specific planner; by default the planners that manage the entity are used.
+      required: false
+      selector:
+        text:
+
+resume:
+  name: Resume entities
+  description: >-
+    Removes the hold and, unless "apply" is off, applies the current scheduled
+    state (the action of the last past event among the enabled rules that
+    target the entity). Entities that are unavailable/unknown are skipped with
+    a warning in the log. Returns {entity_id: {applied: start|end|null, rule: title|null}}.
+  fields:
+    entity_id:
+      name: Entities
+      required: true
+      selector:
+        entity:
+          multiple: true
+    apply:
+      name: Apply current state
+      description: When off, the hold is only removed and nothing is executed.
+      required: false
+      default: true
+      selector:
+        boolean:
+    planner_id:
+      name: Planner ID
+      required: false
+      selector:
+        text:
+
+resync:
+  name: Resync entities
+  description: >-
+    Applies the current scheduled state to entities that are not held. Meant
+    for after a Home Assistant restart or after enabling a group of rules
+    (it is never called automatically). Without entity_id it acts on every
+    entity targeted by the planner's rules. Returns the same structure as "Resume".
+  fields:
+    entity_id:
+      name: Entities
+      description: Leave empty to resync all entities targeted by the rules.
+      required: false
+      selector:
+        entity:
+          multiple: true
+    planner_id:
+      name: Planner ID
+      required: false
+      selector:
+        text:

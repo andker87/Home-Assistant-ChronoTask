@@ -93,6 +93,7 @@ ChronoTask provides:
 - 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
 - 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
 - 🔲 **Lane layout** — overlapping rules are shown side by side instead of stacking
+- ⏸ **Hold / resume / resync** — pause single entities (manual override, open window, away) and let the schedule take over again when the pause ends, with the current expected state exposed for automations
 - 💾 **Export / import rules** — download all rules as a JSON file and load it back (this or another Home Assistant), with a dedicated card
 - 🔎 **Searchable entity picker** — find an entity by name or id, with icon and friendly name
 - 🎨 **Colors and icons** for quick visual recognition
@@ -169,6 +170,33 @@ The same is available as services, e.g. to automate a periodic backup:
 - `chronotask.export_rules` — returns the document (use it as a response variable)
 - `chronotask.import_rules` — `rules` (the list from an export) and `mode`: `merge` (default) or `replace`; a `replace` with no valid rule is refused and changes nothing
 
+#### ⏸ Hold, resume and resync
+ChronoTask is event-driven: at the start of a slot it calls `service`, at the end `end_service`. Three services let other automations coexist with the schedule, for **any** service that targets entities (`entity_id` or `target.entity_id`; rules that target areas or devices cannot be held):
+
+- `chronotask.hold` — `entity_id` (one or more), `minutes` *or* `until` (optional: without them the hold never expires), `reason` (free text, e.g. `override`, `window`, `away`). While an entity is held, rules **do not touch it**: if a rule targets several entities only the held ones are skipped. A new hold replaces the previous one; when a timed hold expires the entity is resumed automatically. Holds survive restarts.
+- `chronotask.resume` — `entity_id`, `apply` (default `true`). Removes the hold and, if `apply`, runs the action of the **current state**: the last past event (up to 7 days back) among the *enabled* rules that target the entity — a slot start runs the start action, a slot end runs the end action; overnight slots, explicit end days and slots without an end work as expected. Returns `{entity_id: {applied: start|end|null, rule: title|null}}`. Entities that are `unavailable`/`unknown` are skipped with a warning, no retry.
+- `chronotask.resync` — `entity_id` (optional; default: every entity targeted by the planner). Applies the current state to the entities that are not held. It is **never called automatically**: call it from an automation after Home Assistant starts, or after enabling a group of rules (`enable_tag` does not apply anything by itself).
+
+At startup, holds that expired while Home Assistant was off are simply removed (nothing is applied: entities may not be available yet — use `resync`).
+
+The sensor `sensor.<planner>_rules` exposes the current state of every targeted entity in the attribute `entities`, updated **before** a rule calls its service, so an automation can compare the real state with the expected one to tell a manual change from a ChronoTask action:
+
+```yaml
+entities:
+  climate.trv_sala:
+    scheduled: start            # start | end | null (last past event)
+    rule: Sala
+    since: "2026-11-03T06:40:00+01:00"
+    expected_service: climate.set_temperature
+    expected_data: {temperature: 25, hvac_mode: heat}   # without entity_id
+    next_change: "2026-11-03T07:10:00+01:00"
+    hold: true
+    hold_until: "2026-11-03T07:25:00+01:00"             # null = no expiry
+    hold_reason: override
+```
+
+Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
+
 #### 🌙 Overnight and multi-day rules
 No extra setting is needed for a slot that crosses midnight: if the end time is earlier than the start time (e.g. Monday 22:00 → 06:00) and *End day* is left on “Same as start”, the end action runs the **next day**. For slots longer than that (e.g. Monday 09:00 → Thursday 09:00) choose the *End day* explicitly.
 
@@ -229,6 +257,7 @@ ChronoTask was born from a real need and grows through collaboration.
 - Report bugs and issues via **GitHub Issues**
 - Propose ideas and improvements
 - Open a **Pull Request** if you want to contribute
+- Run the tests (no Home Assistant needed, only `voluptuous`): `python3 tests/test_slots_state.py`, `python3 tests/test_holds.py`, `python3 tests/test_import_export.py`
 
 ChronoTask does not aim to replace anything.  
 It simply aims to make **weekly scheduling in Home Assistant readable, manageable and fully local**.
