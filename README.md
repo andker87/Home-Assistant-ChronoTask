@@ -163,7 +163,7 @@ ChronoTask includes two custom Lovelace cards. The integration registers them **
 
 After the restart, the cards appear in the Custom card section when adding a new card to a dashboard.
 
-> If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries.
+> If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries. Versions up to 1.7.1-beta1 also copied the card files into `<config>/www/chronotask`: those copies are removed automatically.
 
 #### 💾 Backup and restore
 Add the card **ChronoTask Backup** to a dashboard (`type: custom:chronotask-backup-card`, optional `planner_id` and `title`). *Export rules* downloads a `.json` file; *Import rules* loads one and lets you choose between **Add to existing** and **Replace all**.
@@ -324,11 +324,8 @@ If you prefer not to use HACS, you can install the integration manually:
 4. Restart Home Assistant  
 5. Go to Settings → Devices & Services → Add Integration  
 6. Search for ChronoTask
-The integration will automatically copy the required frontend files into:
-```
-<config>/www/chronotask/
-```
-The cards are then registered automatically, both with storage-mode and YAML-mode dashboards.
+
+The cards are served directly from the integration folder and registered automatically, both with storage-mode and YAML-mode dashboards: nothing is copied into `<config>/www`.
 
 ---
 ### ℹ️ Notes

@@ -1,6 +1,20 @@
-// Funzioni condivise dalle card ChronoTask. Viene importato dalle card con la
-// versione nell'URL (?v=...), quindi una cache vecchia non può mescolare
-// versioni diverse. Ogni card mantiene il proprio dizionario di testi.
+// Funzioni condivise dalle card ChronoTask. Le card lo importano con un
+// percorso relativo: servite da /chronotask/<versione>/, anche questo file ha
+// la versione nel percorso e una cache vecchia non può mescolare versioni.
+// Ogni card mantiene il proprio dizionario di testi.
+
+// Versione della card letta dal suo indirizzo: /chronotask/<versione>/file.js
+// (caricamento automatico) oppure ?v=<versione>; 'local' per le vecchie
+// risorse Lovelace aggiunte a mano (/local/chronotask/...).
+export function versionFromUrl(url) {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/\/chronotask\/([^/]+)\/[^/]+$/);
+    return m ? decodeURIComponent(m[1]) : (u.searchParams.get('v') || 'local');
+  } catch (_) {
+    return 'local';
+  }
+}
 
 // Tag da qualunque formato (lista o testo separato da virgole) a lista in minuscolo.
 export function tagsToArray(raw) {

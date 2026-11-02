@@ -1,6 +1,6 @@
-import { makeTranslator } from './chronotask-common.js?v=__VERSION__';
+import { makeTranslator, versionFromUrl } from './chronotask-common.js';
 
-const CTBK_VERSION = '__VERSION__';
+const CTBK_VERSION = versionFromUrl(import.meta.url);
 
 try {
   console.info(

@@ -1,6 +1,6 @@
-import { tagsToArray as _tagsToArray, makeTranslator } from './chronotask-common.js?v=__VERSION__';
+import { tagsToArray as _tagsToArray, makeTranslator, versionFromUrl } from './chronotask-common.js';
 
-const CTW_VERSION = '__VERSION__';
+const CTW_VERSION = versionFromUrl(import.meta.url);
 try {
   console.info(
     `%c chronotask-weekly-card %c ${CTW_VERSION} `,

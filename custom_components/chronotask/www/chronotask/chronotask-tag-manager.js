@@ -1,7 +1,6 @@
-import { tagsToArray as _tagsToArray, makeTranslator } from './chronotask-common.js?v=__VERSION__';
+import { tagsToArray as _tagsToArray, makeTranslator, versionFromUrl } from './chronotask-common.js';
 
-// FIX: variabile rinominata da CTW_VERSION a CTTM_VERSION (era undefined nel log)
-const CTTM_VERSION = '__VERSION__';
+const CTTM_VERSION = versionFromUrl(import.meta.url);
 
 try {
   console.info(
