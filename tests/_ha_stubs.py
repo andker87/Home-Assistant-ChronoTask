@@ -122,6 +122,36 @@ def install():
     _mod("homeassistant.components")
     _mod("homeassistant.components.sensor", SensorEntity=SensorEntity)
 
+    class CalendarEvent:
+        def __init__(self, start, end, summary, uid=None):
+            self.start, self.end, self.summary, self.uid = start, end, summary, uid
+
+    class CalendarEntity:
+        hass = None
+
+        def async_write_ha_state(self):
+            self.written = getattr(self, "written", 0) + 1
+
+    _mod("homeassistant.components.calendar", CalendarEntity=CalendarEntity, CalendarEvent=CalendarEvent)
+    _mod("homeassistant.helpers.entity", DeviceInfo=dict)
+
+    # Usati da __init__.py
+    import collections
+    fe = _mod("homeassistant.components.frontend",
+              add_extra_js_url=lambda hass, url, es5=False: hass.extra_js.append(url))
+    http = _mod("homeassistant.components.http",
+                StaticPathConfig=collections.namedtuple("StaticPathConfig", "url_path path cache_headers"))
+    comps = sys.modules["homeassistant.components"]
+    comps.frontend, comps.http = fe, http
+    _mod("homeassistant.config_entries", ConfigEntry=object)
+
+    class Platform:
+        CALENDAR = "calendar"
+        SENSOR = "sensor"
+
+    _mod("homeassistant.const", Platform=Platform)
+    cv.config_entry_only_config_schema = lambda domain: None
+
 
 class FakeBus:
     def __init__(self):

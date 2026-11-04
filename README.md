@@ -144,6 +144,8 @@ ChronoTask is not just a card, but a small ecosystem:
 
 ### ✅ Installation via HACS (recommended)
 
+Requires Home Assistant **2024.7** or newer.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andker87&repository=Home-Assistant-ChronoTask&category=integration)
 
 ChronoTask is available in the **HACS default store**.
@@ -161,7 +163,7 @@ ChronoTask includes two custom Lovelace cards. The integration registers them **
 
 After the restart, the cards appear in the Custom card section when adding a new card to a dashboard.
 
-> If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries.
+> If you previously added `/local/chronotask/...` under **Settings → Dashboards → ⋮ → Resources**, you can safely remove those two entries. Versions up to 1.7.1-beta1 also copied the card files into `<config>/www/chronotask`: those copies are removed automatically.
 
 #### 💾 Backup and restore
 Add the card **ChronoTask Backup** to a dashboard (`type: custom:chronotask-backup-card`, optional `planner_id` and `title`). *Export rules* downloads a `.json` file; *Import rules* loads one and lets you choose between **Add to existing** and **Replace all**.
@@ -195,7 +197,7 @@ entities:
     hold_reason: override
 ```
 
-Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
+Each action is also announced with the event `chronotask_action` (`planner_id`, `rule_id`, `title`, `part`: `start` / `end` / `resume` / `resync` / `run_now`, `entity_ids`, `context_id`); the service call carries the same context. `rules` and `entities` are excluded from the recorder history.
 
 **Good to know**
 - Only rules that name an `entity_id` (in the data or in `target`) can be held; for rules that target areas or devices `hold` has no effect, and they don't appear in `entities`.
@@ -322,11 +324,8 @@ If you prefer not to use HACS, you can install the integration manually:
 4. Restart Home Assistant  
 5. Go to Settings → Devices & Services → Add Integration  
 6. Search for ChronoTask
-The integration will automatically copy the required frontend files into:
-```
-<config>/www/chronotask/
-```
-The cards are then registered automatically, both with storage-mode and YAML-mode dashboards.
+
+The cards are served directly from the integration folder and registered automatically, both with storage-mode and YAML-mode dashboards: nothing is copied into `<config>/www`.
 
 ---
 ### ℹ️ Notes
@@ -371,7 +370,7 @@ ChronoTask was born from a real need and grows through collaboration.
 - Report bugs and issues via **GitHub Issues**
 - Propose ideas and improvements
 - Open a **Pull Request** if you want to contribute
-- Run the tests (no Home Assistant needed, only `voluptuous`): `python3 tests/test_slots_state.py`, `python3 tests/test_holds.py`, `python3 tests/test_import_export.py`
+- Run the tests (no Home Assistant needed, only `voluptuous`): `for t in tests/test_*.py; do python3 $t; done`
 
 ChronoTask does not aim to replace anything.  
 It simply aims to make **weekly scheduling in Home Assistant readable, manageable and fully local**.

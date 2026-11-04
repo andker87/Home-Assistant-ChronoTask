@@ -7,11 +7,20 @@ import homeassistant.helpers.config_validation as cv
 from pathlib import Path
 
 from homeassistant.components import frontend
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_NAME, URL_BASE, INTEGRATION_VERSION, FRONTEND_FILES
+from .const import (
+    DOMAIN,
+    CONF_NAME,
+    URL_BASE,
+    FRONTEND_DIR,
+    FRONTEND_URL,
+    FRONTEND_FILES,
+    FRONTEND_COMMON,
+)
 from .storage import PlannerStorage
 from .scheduler import WeeklyScheduler
 from .services import async_setup_services
@@ -24,95 +33,59 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 
 
-def _copy_frontend_files(hass: HomeAssistant) -> None:
-    """Copia i file JS da custom_components/chronotask/www/chronotask a /config/www/chronotask,
-    sostituendo il placeholder __VERSION__ con la versione dell'integrazione.
-    Questa funzione è sincrona e va eseguita in un executor thread.
-    """
-    src = Path(hass.config.path("custom_components/chronotask/www/chronotask"))
-    dst = Path(hass.config.path("www/chronotask"))
-
-    if not src.exists():
-        _LOGGER.warning("ChronoTask: cartella sorgente JS non trovata: %s", src)
+def _remove_legacy_copies(hass: HomeAssistant) -> None:
+    """Fino alla 1.7.1-beta1 le card venivano copiate in <config>/www/chronotask.
+    Ora sono servite dalla cartella dell'integrazione: si cancellano le vecchie
+    copie (solo i file di ChronoTask) e la cartella, se resta vuota.
+    Sincrona: va eseguita in un executor thread."""
+    legacy = Path(hass.config.path("www/chronotask"))
+    if not legacy.is_dir():
         return
-
-    dst.mkdir(parents=True, exist_ok=True)
-
-    for file in src.glob("*.js"):
+    removed = []
+    for name in (*FRONTEND_FILES, FRONTEND_COMMON):
+        file = legacy / name
         try:
-            content = file.read_text(encoding="utf-8")
-            content = content.replace("__VERSION__", INTEGRATION_VERSION)
-            dest_file = dst / file.name
-            dest_file.write_text(content, encoding="utf-8")
-            _LOGGER.info(
-                "ChronoTask: file frontend aggiornato: %s (versione %s)",
-                dest_file.name, INTEGRATION_VERSION,
-            )
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error("ChronoTask: errore copia %s: %s", file, e)
-
-
-async def _register_static_path_no_cache(hass: HomeAssistant, static_dir: str) -> None:
-    """Registra /local/chronotask con cache disabilitata.
-
-    Il file JS delle card viene riscritto ad ogni avvio con la stessa
-    identica URL (/local/chronotask/...): se il browser lo mette in cache
-    in modo aggressivo, un utente può restare bloccato su una versione
-    vecchia per mesi nonostante aggiornamenti e riavvii successivi, perché
-    non c'è mai una richiesta di rete che gli faccia notare la differenza.
-    Da qui l'esigenza di questa registrazione esplicita con cache_headers=False,
-    anche se "frontend" già serve /local -> <config>/www di default (ma con
-    cache abilitata, quindi non basta).
-
-    HA ha rimosso/rinominato l'API sincrona hass.http.register_static_path
-    in alcune versioni recenti a favore di una versione async basata su
-    StaticPathConfig: proviamo prima quella, poi ripieghiamo sulla vecchia
-    per le versioni di HA che non hanno ancora la nuova.
-    """
+            if file.is_file():
+                file.unlink()
+                removed.append(name)
+        except OSError as err:
+            _LOGGER.warning("ChronoTask: impossibile cancellare la vecchia copia %s: %s", file, err)
     try:
-        from homeassistant.components.http import StaticPathConfig
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(URL_BASE, static_dir, False)]
-        )
-        _LOGGER.debug("ChronoTask: static path no-cache registrato (async) su %s", URL_BASE)
-        return
-    except ImportError:
-        pass  # HA senza StaticPathConfig: prova l'API legacy sotto
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.warning(
-            "ChronoTask: registrazione static path no-cache (async) fallita per %s: %s",
-            URL_BASE, err,
-        )
-        return
-
-    try:
-        hass.http.register_static_path(URL_BASE, static_dir, cache_headers=False)
-        _LOGGER.debug("ChronoTask: static path no-cache registrato (legacy) su %s", URL_BASE)
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.warning(
-            "ChronoTask: impossibile registrare %s senza cache (%s). "
-            "I file delle card saranno serviti dalla route /local di default "
-            "(con cache attiva): dopo un aggiornamento potrebbe servire uno "
-            "svuotamento manuale della cache del browser.",
-            URL_BASE, err,
+        legacy.rmdir()  # riesce solo se la cartella è vuota
+        folder_removed = True
+    except OSError:
+        folder_removed = False
+    if removed or folder_removed:
+        _LOGGER.info(
+            "ChronoTask: rimosse le vecchie copie delle card da %s: %s%s",
+            legacy, ", ".join(removed) or "-", " (cartella eliminata)" if folder_removed else "",
         )
 
 
-def _register_frontend_modules(hass: HomeAssistant) -> None:
-    """Carica le card su ogni pagina di HA, senza Lovelace Resources manuali.
+async def _register_frontend(hass: HomeAssistant) -> None:
+    """Serve le card dalla cartella dell'integrazione e le fa caricare a HA su
+    ogni pagina, senza risorse Lovelace manuali e senza copiare file.
 
-    L'URL include la versione dell'integrazione: a ogni release cambia, quindi
-    né la cache del browser né una CDN/proxy davanti a HA (es. Cloudflare)
-    possono servire una copia vecchia. Funziona sia con dashboard in modalità
-    storage sia YAML e non modifica la configurazione dell'utente. Le card
-    si registrano solo se non lo sono già, quindi una risorsa aggiunta a mano
-    in passato non causa errori.
+    - FRONTEND_URL (/chronotask/<versione>/...): usato dal caricamento
+      automatico. Cambia a ogni release, quindi può stare in cache; anche il
+      modulo comune importato dalle card segue la stessa versione.
+    - URL_BASE (/local/chronotask/...): compatibilità per le vecchie risorse
+      aggiunte a mano; stessa cartella, senza cache.
     """
+    static_dir = str(FRONTEND_DIR)
+    try:
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(FRONTEND_URL, static_dir, True),
+            StaticPathConfig(URL_BASE, static_dir, False),
+        ])
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.error("ChronoTask: impossibile servire i file delle card (%s)", err)
+        return
     for name in FRONTEND_FILES:
-        url = f"{URL_BASE}/{name}?v={INTEGRATION_VERSION}"
+        url = f"{FRONTEND_URL}/{name}"
         try:
             frontend.add_extra_js_url(hass, url)
-            _LOGGER.debug("ChronoTask: modulo frontend registrato: %s", url)
+            _LOGGER.debug("ChronoTask: card registrata: %s", url)
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning(
                 "ChronoTask: registrazione automatica di %s fallita (%s): "
@@ -121,15 +94,10 @@ def _register_frontend_modules(hass: HomeAssistant) -> None:
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Setup globale: copia i JS delle card (in executor) e registra la loro
-    URL pubblica senza cache, così un aggiornamento è visibile subito."""
-
-    # Copia i file JS in un thread per non bloccare l'event loop
-    await hass.async_add_executor_job(_copy_frontend_files, hass)
-
-    await _register_static_path_no_cache(hass, hass.config.path("www/chronotask"))
-    _register_frontend_modules(hass)
-
+    """Setup globale: rimuove le vecchie copie delle card e le serve dalla
+    cartella dell'integrazione."""
+    await hass.async_add_executor_job(_remove_legacy_copies, hass)
+    await _register_frontend(hass)
     return True
 
 
@@ -162,7 +130,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Pianifica tutte le regole
     await scheduler.async_reschedule_all()
+
+    # Rinomina dalle opzioni: ricarica l'entry così nomi di sensore, calendario
+    # e dispositivo si aggiornano subito, senza riavviare Home Assistant.
+    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     return True
+
+
+async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

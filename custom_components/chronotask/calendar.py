@@ -10,6 +10,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    BUS_EVENT_CHANGED,
     DOMAIN,
     PLANNER_CALENDAR_SUFFIX,
     CONF_TITLE,
@@ -20,24 +21,15 @@ from .const import (
     ATTR_ID,
     CONF_END_DAY,
 )
-from .slots import effective_end_day, expand_rules
+from .slots import effective_end_day, expand_rules, parse_hm
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _parse_hm(hm: str) -> tuple[int, int] | None:
-    """Parsa una stringa HH:MM e restituisce (ore, minuti) o None se non valida."""
+def _build_event(rule: dict, base_date) -> CalendarEvent | None:
+    """CalendarEvent di una fascia (regola espansa) che inizia nel giorno base_date."""
     try:
-        parts = hm[:5].split(":")
-        return int(parts[0]), int(parts[1])
-    except (ValueError, IndexError, AttributeError):
-        return None
-
-
-def _build_event(rule: dict, base_date, now) -> CalendarEvent | None:
-    """Costruisce un CalendarEvent dalla regola per il giorno base_date dato."""
-    try:
-        start_hm = _parse_hm(rule.get(CONF_START, ""))
+        start_hm = parse_hm(rule.get(CONF_START))
         if not start_hm:
             return None
 
@@ -46,14 +38,13 @@ def _build_event(rule: dict, base_date, now) -> CalendarEvent | None:
         end = start
 
         if rule.get(CONF_END):
-            end_hm = _parse_hm(rule[CONF_END])
+            end_hm = parse_hm(rule[CONF_END])
             if end_hm:
                 eh, em = end_hm
-                wd = base_date.weekday()
                 eday = effective_end_day(
                     rule[CONF_DAY], rule.get(CONF_START), rule[CONF_END], rule.get(CONF_END_DAY)
                 )
-                delta_days = (eday - wd) % 7
+                delta_days = (eday - base_date.weekday()) % 7
                 end = (base_date + timedelta(days=delta_days)).replace(
                     hour=eh, minute=em, second=0, microsecond=0
                 )
@@ -68,6 +59,29 @@ def _build_event(rule: dict, base_date, now) -> CalendarEvent | None:
         )
     except Exception:  # noqa: BLE001
         return None
+
+
+def _events_between(rules: list[dict], start, end) -> list[CalendarEvent]:
+    """Eventi che si sovrappongono a [start, end], ordinati per inizio.
+
+    Si parte da 7 giorni prima di 'start' (una fascia dura al massimo una
+    settimana), così compaiono anche le fasce iniziate prima: notturne
+    (22:00 -> 06:00) e di più giorni (lunedì -> giovedì)."""
+    events: list[CalendarEvent] = []
+    day = dt_util.as_local(start).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7)
+    last = dt_util.as_local(end)
+    while day <= last:
+        weekday = day.weekday()
+        for rule in rules:
+            if int(rule[CONF_DAY]) != weekday:
+                continue
+            ev = _build_event(rule, day)
+            if ev is None or ev.end < start or ev.start > end:
+                continue
+            events.append(ev)
+        day += timedelta(days=1)
+    events.sort(key=lambda e: e.start)
+    return events
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -88,7 +102,7 @@ class EntryPlannerCalendar(CalendarEntity):
         self._unsub = None
 
     async def async_added_to_hass(self) -> None:
-        self._unsub = self.hass.bus.async_listen(f"{DOMAIN}_changed", self._on_changed)
+        self._unsub = self.hass.bus.async_listen(BUS_EVENT_CHANGED, self._on_changed)
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsub:
@@ -108,70 +122,25 @@ class EntryPlannerCalendar(CalendarEntity):
     def event(self):
         return self._event
 
-    async def _on_changed(self, _) -> None:
+    async def _on_changed(self, event) -> None:
+        pid = event.data.get("planner_id") if event and event.data else None
+        if pid and pid != self._entry_id:
+            return
         await self.async_update()
         self.async_write_ha_state()
 
+    def _enabled_rules(self) -> list[dict]:
+        storage = self.hass.data[DOMAIN][self._entry_id]["storage"]
+        return [r for r in expand_rules(storage.list_rules()) if r.get(CONF_ENABLED, True)]
+
     async def async_update(self) -> None:
-        planner = self.hass.data[DOMAIN][self._entry_id]
-        rules = [
-            r for r in expand_rules(planner["storage"].list_rules())
-            if r.get(CONF_ENABLED, True)
-        ]
-
         now = dt_util.now()
-        look_ahead_end = now + timedelta(days=7)
-
-        ongoing = None
-        next_ev = None
-        next_start = None
-
-        cur = now
-        while cur <= look_ahead_end:
-            wd = cur.weekday()
-            for r in rules:
-                if int(r[CONF_DAY]) != wd:
-                    continue
-                ev = _build_event(r, cur, now)
-                if not ev:
-                    continue
-                if ev.end < now and ev.start < now:
-                    continue
-                if ev.start <= now <= ev.end:
-                    ongoing = ev
-                    break
-                if ev.start > now and (next_start is None or ev.start < next_start):
-                    next_ev = ev
-                    next_start = ev.start
-            if ongoing:
-                break
-            cur += timedelta(days=1)
-
-        self._event = ongoing or next_ev
+        events = _events_between(self._enabled_rules(), now, now + timedelta(days=7))
+        ongoing = next((e for e in events if e.start <= now <= e.end), None)
+        upcoming = next((e for e in events if e.start > now), None)
+        self._event = ongoing or upcoming
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date, end_date
     ) -> Iterable[CalendarEvent]:
-        planner = self.hass.data[DOMAIN][self._entry_id]
-        rules = [
-            r for r in expand_rules(planner["storage"].list_rules())
-            if r.get(CONF_ENABLED, True)
-        ]
-
-        events: list[CalendarEvent] = []
-        cur = dt_util.as_local(start_date)
-
-        while cur <= end_date:
-            wd = cur.weekday()
-            for r in rules:
-                if int(r[CONF_DAY]) != wd:
-                    continue
-                ev = _build_event(r, cur, None)
-                if not ev:
-                    continue
-                if ev.end < start_date or ev.start > end_date:
-                    continue
-                events.append(ev)
-            cur += timedelta(days=1)
-
-        return events
+        return _events_between(self._enabled_rules(), start_date, end_date)

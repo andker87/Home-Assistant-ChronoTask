@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, PLANNER_SENSOR_SUFFIX
+from .const import BUS_EVENT_CHANGED, DOMAIN, PLANNER_SENSOR_SUFFIX
 from .slots import build_entities_view
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,9 +43,7 @@ class PlannerRulesSensor(SensorEntity):
         except Exception:  # noqa: BLE001
             pass
 
-        self._unsub = self.hass.bus.async_listen(
-            f"{DOMAIN}_changed", self._on_changed
-        )
+        self._unsub = self.hass.bus.async_listen(BUS_EVENT_CHANGED, self._on_changed)
         await self.async_update()
         self.async_write_ha_state()
 
@@ -64,9 +62,12 @@ class PlannerRulesSensor(SensorEntity):
             pass
 
     async def _on_changed(self, event) -> None:
-        pid = event.data.get("planner_id") if event and event.data else None
+        data = event.data if event and event.data else {}
+        pid = data.get("planner_id")
         if pid and pid != self._entry_id:
             return
+        if data.get("sensor_refreshed"):
+            return  # chi ha generato l'evento ha già aggiornato il sensore
         await self.async_update()
         self.async_write_ha_state()
 

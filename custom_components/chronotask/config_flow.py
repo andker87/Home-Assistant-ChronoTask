@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import re
-import logging
 
 from homeassistant import config_entries
 from homeassistant.core import callback
 import voluptuous as vol
 
 from .const import DOMAIN, CONF_NAME
-
-_LOGGER = logging.getLogger(__name__)
-
 
 def _slugify(text: str) -> str:
     """Crea uno slug semplice dal nome del planner per l'unique_id."""
@@ -24,8 +20,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             title = (user_input.get(CONF_NAME) or "ChronoTask").strip()
             unique_id = _slugify(title)
@@ -42,7 +36,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
-            errors=errors,
         )
 
     @staticmethod
@@ -58,8 +51,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             new_name = (user_input.get(CONF_NAME) or "ChronoTask").strip()
             # Aggiorna il titolo dell'entry
@@ -77,5 +68,4 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=data_schema,
-            errors=errors,
         )

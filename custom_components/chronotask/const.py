@@ -12,15 +12,21 @@ try:
 except Exception:  # noqa: BLE001
     INTEGRATION_VERSION: Final[str] = "0.0.0"
 
-# URL base pubblico
+DOMAIN = "chronotask"
+
+# Card: servite direttamente dalla cartella dell'integrazione.
+# FRONTEND_URL contiene la versione, quindi cambia a ogni release e nessuna
+# cache (browser, CDN, proxy) può servire file vecchi. URL_BASE resta per
+# compatibilità con chi ha ancora le vecchie risorse Lovelace manuali.
+FRONTEND_DIR = Path(__file__).parent / "www" / "chronotask"
+FRONTEND_URL = f"/{DOMAIN}/{INTEGRATION_VERSION}"
 URL_BASE = "/local/chronotask"
 FRONTEND_FILES = (
     "chronotask-weekly-card.js",
     "chronotask-tag-manager.js",
     "chronotask-backup-card.js",
 )
-
-DOMAIN = "chronotask"
+FRONTEND_COMMON = "chronotask-common.js"
 EVENT_ACTION = "chronotask_action"
 PLANNER_CALENDAR_SUFFIX = "chronotask"
 PLANNER_SENSOR_SUFFIX = "chronotask_rules"
