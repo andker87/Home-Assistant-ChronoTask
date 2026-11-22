@@ -157,10 +157,28 @@ class ChronoTaskTagManagerCard extends HTMLElement {
 
   set hass(hass){
     this._hass=hass;
+    if(this._editor) this._editor.hass=hass;
     this._scheduleUpdate();
   }
 
   getCardSize(){ return 3; }
+
+  // Tocco su una regola: apre lo stesso dialog di modifica della card
+  // settimanale, tramite un'istanza di quella card creata solo per il dialog
+  // (non serve che la card settimanale sia presente nella vista).
+  _openEditor(rule){
+    const Weekly=customElements.get('chronotask-weekly-card');
+    if(!Weekly||!this._hass) return;
+    try{
+      if(!this._editor) this._editor=document.createElement('chronotask-weekly-card');
+      const pid=this._plannerId();
+      this._editor.setConfig({ rules_entity:this._config.rules_entity, ...(pid?{planner_id:pid}:{}) });
+      this._editor.hass=this._hass;
+      this._editor.openRuleEditor(rule);
+    }catch(err){
+      console.error('ChronoTask: apertura del dialog di modifica fallita', err);
+    }
+  }
 
   _t(key,...args){ return _ctT(this._hass,key,...args); }
 
@@ -194,6 +212,8 @@ class ChronoTaskTagManagerCard extends HTMLElement {
         .list{display:flex;flex-direction:column;gap:6px}
         .row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color)}
         .row.disabled{opacity:.55}
+        .row.clickable{cursor:pointer}
+        .row.clickable:hover{border-color:var(--primary-color)}
         .main{flex:1 1 auto;min-width:0}
         .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .meta{font-size:12px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -380,7 +400,8 @@ class ChronoTaskTagManagerCard extends HTMLElement {
       const realEnabled = (r.enabled !== false);
       const isEnabled = this._optimistic.has(key) ? this._optimistic.get(key) : realEnabled;
 
-      row.className='row' + (isEnabled ? '' : ' disabled');
+      row.className='row clickable' + (isEnabled ? '' : ' disabled');
+      row.addEventListener('click', ()=> this._openEditor(r));
 
       let sw;
       if(customElements.get('ha-switch')){

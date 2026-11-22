@@ -33,6 +33,7 @@ const CT_STRINGS={
     defaultTitle:'Programmazione settimanale (ricorrente)',
     enable:'Abilita', disable:'Disabilita',
     addRule:'+ Aggiungi regola', addSlot:'+ Aggiungi fascia',
+    slotDays:'Giorni', presetWeekdays:'Lun–Ven', presetWeekend:'Weekend', presetAll:'Tutti', duplicateSlot:'Duplica', endNextDay:'Giorno dopo', endPlusDays:(n)=>`+${n} giorni`, errSlotNoDays:'Ogni fascia deve avere almeno un giorno selezionato.', errRequiredFields:(l)=>`Campi obbligatori mancanti: ${l}`, errInvalidJson:(l)=>`JSON non valido nel campo: ${l}`, moreOptions:'Altre opzioni', boolYes:'Sì', boolNo:'No', notSet:'— non impostato —', jsonHint:'Formato JSON, es. {"type": "announce"}', durationHint:'Formato HH:MM:SS',
     confirmDisableAll:(n)=>`Disabilitare tutte le ${n} regole attive di questo planner?`,
     dialogNotAvailable:'Dialog avanzato non disponibile: aggiorna Home Assistant.',
     editRule:'Modifica regola', newRuleDup:'Nuova regola (duplica)', newRule:'Nuova regola',
@@ -46,7 +47,7 @@ const CT_STRINGS={
     actionStart:'Action (inizio)', actionEnd:'Action (fine, opzionale)', action:'Action',
     cancel:'Annulla', save:'Salva',
     slotLabel:'Fascia', removeSlot:'Rimuovi fascia',
-    day:'Giorno', startTime:'Ora inizio', endTimeOpt:'Ora fine (opz.)', endDay:'Giorno fine',
+    startTime:'Ora inizio', endTimeOpt:'Ora fine (opz.)', endDay:'Giorno fine',
     sameAsStart:'(uguale a inizio)',
     selectIcon:'Seleziona icona (mdi)',
     selectService:'(seleziona servizio)',
@@ -57,8 +58,6 @@ const CT_STRINGS={
     entityCT:'Entità (ChronoTask)', startHour:'Ora inizio', endHour:'Ora fine',
     slotInterval:'Intervallo slot', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
     configureRulesEntity:'(configura rules_entity)',
-    fieldBrightness:'Luminosità (0–255)', fieldTransition:'Transizione (s)', fieldEffect:'Effetto', egColorloop:'es. colorloop',
-    fieldTemperature:'Temperatura', fieldPosition:'Posizione (0–100)', fieldVolume:'Volume (0.0–1.0)',
     warnNoStartService:'Seleziona un servizio di inizio.', warnNoValidSlots:'Aggiungi almeno una fascia oraria valida (giorno + ora inizio).',
     errIconPickerFallback:'ChronoTask: ha-icon-picker non disponibile, uso il campo semplice:',
     errActionSelectorInit:'ChronoTask: errore inizializzazione action selector:',
@@ -71,6 +70,7 @@ const CT_STRINGS={
     defaultTitle:'Weekly schedule (recurring)',
     enable:'Enable', disable:'Disable',
     addRule:'+ Add rule', addSlot:'+ Add slot',
+    slotDays:'Days', presetWeekdays:'Mon–Fri', presetWeekend:'Weekend', presetAll:'All', duplicateSlot:'Duplicate', endNextDay:'Next day', endPlusDays:(n)=>`+${n} days`, errSlotNoDays:'Every slot needs at least one day selected.', errRequiredFields:(l)=>`Missing required fields: ${l}`, errInvalidJson:(l)=>`Invalid JSON in field: ${l}`, moreOptions:'More options', boolYes:'Yes', boolNo:'No', notSet:'— not set —', jsonHint:'JSON format, e.g. {"type": "announce"}', durationHint:'Format HH:MM:SS',
     confirmDisableAll:(n)=>`Disable all ${n} active rules in this planner?`,
     dialogNotAvailable:'Advanced dialog not available: please update Home Assistant.',
     editRule:'Edit rule', newRuleDup:'New rule (duplicate)', newRule:'New rule',
@@ -84,7 +84,7 @@ const CT_STRINGS={
     actionStart:'Action (start)', actionEnd:'Action (end, optional)', action:'Action',
     cancel:'Cancel', save:'Save',
     slotLabel:'Slot', removeSlot:'Remove slot',
-    day:'Day', startTime:'Start time', endTimeOpt:'End time (opt.)', endDay:'End day',
+    startTime:'Start time', endTimeOpt:'End time (opt.)', endDay:'End day',
     sameAsStart:'(same as start)',
     selectIcon:'Select icon (mdi)',
     selectService:'(select service)',
@@ -95,8 +95,6 @@ const CT_STRINGS={
     entityCT:'Entity (ChronoTask)', startHour:'Start hour', endHour:'End hour',
     slotInterval:'Slot interval', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
     configureRulesEntity:'(configure rules_entity)',
-    fieldBrightness:'Brightness (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effect', egColorloop:'e.g. colorloop',
-    fieldTemperature:'Temperature', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
     warnNoStartService:'Select a start service.', warnNoValidSlots:'Add at least one valid time slot (day + start time).',
     errIconPickerFallback:'ChronoTask: ha-icon-picker not available, using the plain field:',
     errActionSelectorInit:'ChronoTask: error initializing the action selector:',
@@ -109,6 +107,7 @@ const CT_STRINGS={
     defaultTitle:'Planning hebdomadaire (récurrent)',
     enable:'Activer', disable:'Désactiver',
     addRule:'+ Ajouter une règle', addSlot:'+ Ajouter un créneau',
+    slotDays:'Jours', presetWeekdays:'Lun–Ven', presetWeekend:'Week-end', presetAll:'Tous', duplicateSlot:'Dupliquer', endNextDay:'Jour suivant', endPlusDays:(n)=>`+${n} jours`, errSlotNoDays:'Chaque créneau doit avoir au moins un jour sélectionné.', errRequiredFields:(l)=>`Champs obligatoires manquants : ${l}`, errInvalidJson:(l)=>`JSON non valide dans le champ : ${l}`, moreOptions:'Plus d\'options', boolYes:'Oui', boolNo:'Non', notSet:'— non défini —', jsonHint:'Format JSON, ex. {"type": "announce"}', durationHint:'Format HH:MM:SS',
     confirmDisableAll:(n)=>`Désactiver les ${n} règles actives de ce planificateur ?`,
     dialogNotAvailable:'Boîte de dialogue avancée non disponible : veuillez mettre à jour Home Assistant.',
     editRule:'Modifier la règle', newRuleDup:'Nouvelle règle (dupliquée)', newRule:'Nouvelle règle',
@@ -122,7 +121,7 @@ const CT_STRINGS={
     actionStart:'Action (début)', actionEnd:'Action (fin, facultatif)', action:'Action',
     cancel:'Annuler', save:'Enregistrer',
     slotLabel:'Créneau', removeSlot:'Supprimer le créneau',
-    day:'Jour', startTime:'Heure de début', endTimeOpt:'Heure de fin (opt.)', endDay:'Jour de fin',
+    startTime:'Heure de début', endTimeOpt:'Heure de fin (opt.)', endDay:'Jour de fin',
     sameAsStart:'(identique au début)',
     selectIcon:'Sélectionner une icône (mdi)',
     selectService:'(sélectionner un service)',
@@ -133,8 +132,6 @@ const CT_STRINGS={
     entityCT:'Entité (ChronoTask)', startHour:'Heure de début', endHour:'Heure de fin',
     slotInterval:'Intervalle des créneaux', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
     configureRulesEntity:'(configurer rules_entity)',
-    fieldBrightness:'Luminosité (0-255)', fieldTransition:'Transition (s)', fieldEffect:'Effet', egColorloop:'ex. colorloop',
-    fieldTemperature:'Température', fieldPosition:'Position (0-100)', fieldVolume:'Volume (0.0-1.0)',
     warnNoStartService:'Sélectionnez un service de début.', warnNoValidSlots:'Ajoutez au moins un créneau horaire valide (jour + heure de début).',
     errIconPickerFallback:'ChronoTask : ha-icon-picker non disponible, utilisation du champ simple :',
     errActionSelectorInit:"ChronoTask : erreur d'initialisation du sélecteur d'action :",
@@ -147,6 +144,7 @@ const CT_STRINGS={
     defaultTitle:'Wochenplan (wiederkehrend)',
     enable:'Aktivieren', disable:'Deaktivieren',
     addRule:'+ Regel hinzufügen', addSlot:'+ Zeitfenster hinzufügen',
+    slotDays:'Tage', presetWeekdays:'Mo–Fr', presetWeekend:'Wochenende', presetAll:'Alle', duplicateSlot:'Duplizieren', endNextDay:'Folgetag', endPlusDays:(n)=>`+${n} Tage`, errSlotNoDays:'Jedes Zeitfenster braucht mindestens einen ausgewählten Tag.', errRequiredFields:(l)=>`Fehlende Pflichtfelder: ${l}`, errInvalidJson:(l)=>`Ungültiges JSON im Feld: ${l}`, moreOptions:'Weitere Optionen', boolYes:'Ja', boolNo:'Nein', notSet:'— nicht gesetzt —', jsonHint:'JSON-Format, z. B. {"type": "announce"}', durationHint:'Format HH:MM:SS',
     confirmDisableAll:(n)=>`Alle ${n} aktiven Regeln dieses Planers deaktivieren?`,
     dialogNotAvailable:'Erweiterter Dialog nicht verfügbar: Bitte Home Assistant aktualisieren.',
     editRule:'Regel bearbeiten', newRuleDup:'Neue Regel (Duplikat)', newRule:'Neue Regel',
@@ -160,7 +158,7 @@ const CT_STRINGS={
     actionStart:'Aktion (Start)', actionEnd:'Aktion (Ende, optional)', action:'Aktion',
     cancel:'Abbrechen', save:'Speichern',
     slotLabel:'Zeitfenster', removeSlot:'Zeitfenster entfernen',
-    day:'Tag', startTime:'Startzeit', endTimeOpt:'Endzeit (opt.)', endDay:'Endtag',
+    startTime:'Startzeit', endTimeOpt:'Endzeit (opt.)', endDay:'Endtag',
     sameAsStart:'(wie Start)',
     selectIcon:'Symbol auswählen (mdi)',
     selectService:'(Dienst auswählen)',
@@ -171,8 +169,6 @@ const CT_STRINGS={
     entityCT:'Entität (ChronoTask)', startHour:'Startzeit', endHour:'Endzeit',
     slotInterval:'Zeitfenster-Intervall', min15:'15 Min', min30:'30 Min', min45:'45 Min', h1:'1 Std',
     configureRulesEntity:'(rules_entity konfigurieren)',
-    fieldBrightness:'Helligkeit (0–255)', fieldTransition:'Übergang (s)', fieldEffect:'Effekt', egColorloop:'z. B. colorloop',
-    fieldTemperature:'Temperatur', fieldPosition:'Position (0–100)', fieldVolume:'Lautstärke (0.0–1.0)',
     warnNoStartService:'Wähle einen Start-Dienst aus.', warnNoValidSlots:'Füge mindestens ein gültiges Zeitfenster hinzu (Tag + Startzeit).',
     errIconPickerFallback:'ChronoTask: ha-icon-picker nicht verfügbar, verwende das einfache Feld:',
     errActionSelectorInit:'ChronoTask: Fehler beim Initialisieren der Aktionsauswahl:',
@@ -185,6 +181,7 @@ const CT_STRINGS={
     defaultTitle:'Planificación semanal (recurrente)',
     enable:'Activar', disable:'Desactivar',
     addRule:'+ Añadir regla', addSlot:'+ Añadir franja',
+    slotDays:'Días', presetWeekdays:'Lun–Vie', presetWeekend:'Fin de semana', presetAll:'Todos', duplicateSlot:'Duplicar', endNextDay:'Día siguiente', endPlusDays:(n)=>`+${n} días`, errSlotNoDays:'Cada franja necesita al menos un día seleccionado.', errRequiredFields:(l)=>`Faltan campos obligatorios: ${l}`, errInvalidJson:(l)=>`JSON no válido en el campo: ${l}`, moreOptions:'Más opciones', boolYes:'Sí', boolNo:'No', notSet:'— sin definir —', jsonHint:'Formato JSON, p. ej. {"type": "announce"}', durationHint:'Formato HH:MM:SS',
     confirmDisableAll:(n)=>`¿Desactivar las ${n} reglas activas de este planificador?`,
     dialogNotAvailable:'Diálogo avanzado no disponible: actualiza Home Assistant.',
     editRule:'Editar regla', newRuleDup:'Nueva regla (duplicada)', newRule:'Nueva regla',
@@ -198,7 +195,7 @@ const CT_STRINGS={
     actionStart:'Acción (inicio)', actionEnd:'Acción (fin, opcional)', action:'Acción',
     cancel:'Cancelar', save:'Guardar',
     slotLabel:'Franja', removeSlot:'Eliminar franja',
-    day:'Día', startTime:'Hora de inicio', endTimeOpt:'Hora de fin (opc.)', endDay:'Día de fin',
+    startTime:'Hora de inicio', endTimeOpt:'Hora de fin (opc.)', endDay:'Día de fin',
     sameAsStart:'(igual que el inicio)',
     selectIcon:'Seleccionar icono (mdi)',
     selectService:'(seleccionar servicio)',
@@ -209,8 +206,6 @@ const CT_STRINGS={
     entityCT:'Entidad (ChronoTask)', startHour:'Hora de inicio', endHour:'Hora de fin',
     slotInterval:'Intervalo de franja', min15:'15 min', min30:'30 min', min45:'45 min', h1:'1 h',
     configureRulesEntity:'(configura rules_entity)',
-    fieldBrightness:'Brillo (0-255)', fieldTransition:'Transición (s)', fieldEffect:'Efecto', egColorloop:'ej. colorloop',
-    fieldTemperature:'Temperatura', fieldPosition:'Posición (0-100)', fieldVolume:'Volumen (0.0-1.0)',
     warnNoStartService:'Selecciona un servicio de inicio.', warnNoValidSlots:'Añade al menos una franja horaria válida (día + hora de inicio).',
     errIconPickerFallback:'ChronoTask: ha-icon-picker no disponible, se usa el campo simple:',
     errActionSelectorInit:'ChronoTask: error al inicializar el selector de acción:',
@@ -223,6 +218,7 @@ const CT_STRINGS={
     defaultTitle:'每周计划（循环）',
     enable:'启用', disable:'禁用',
     addRule:'+ 添加规则', addSlot:'+ 添加时段',
+    slotDays:'星期', presetWeekdays:'周一至周五', presetWeekend:'周末', presetAll:'全部', duplicateSlot:'复制', endNextDay:'次日', endPlusDays:(n)=>`+${n} 天`, errSlotNoDays:'每个时段至少需要选择一天。', errRequiredFields:(l)=>`缺少必填字段：${l}`, errInvalidJson:(l)=>`字段中的 JSON 无效：${l}`, moreOptions:'更多选项', boolYes:'是', boolNo:'否', notSet:'— 未设置 —', jsonHint:'JSON 格式，例如 {"type": "announce"}', durationHint:'格式 HH:MM:SS',
     confirmDisableAll:(n)=>`确定要禁用此计划器中所有 ${n} 条已启用的规则吗？`,
     dialogNotAvailable:'高级对话框不可用：请更新 Home Assistant。',
     editRule:'编辑规则', newRuleDup:'新规则（复制）', newRule:'新规则',
@@ -236,7 +232,7 @@ const CT_STRINGS={
     actionStart:'动作（开始）', actionEnd:'动作（结束，可选）', action:'动作',
     cancel:'取消', save:'保存',
     slotLabel:'时段', removeSlot:'移除时段',
-    day:'星期', startTime:'开始时间', endTimeOpt:'结束时间（可选）', endDay:'结束日',
+    startTime:'开始时间', endTimeOpt:'结束时间（可选）', endDay:'结束日',
     sameAsStart:'（与开始相同）',
     selectIcon:'选择图标（mdi）',
     selectService:'（选择服务）',
@@ -247,8 +243,6 @@ const CT_STRINGS={
     entityCT:'实体（ChronoTask）', startHour:'开始时间', endHour:'结束时间',
     slotInterval:'时段间隔', min15:'15 分钟', min30:'30 分钟', min45:'45 分钟', h1:'1 小时',
     configureRulesEntity:'（配置 rules_entity）',
-    fieldBrightness:'亮度（0–255）', fieldTransition:'过渡时间（秒）', fieldEffect:'效果', egColorloop:'例如：colorloop',
-    fieldTemperature:'温度', fieldPosition:'位置（0–100）', fieldVolume:'音量（0.0–1.0）',
     warnNoStartService:'请选择一个开始服务。', warnNoValidSlots:'请至少添加一个有效的时段（星期 + 开始时间）。',
     errIconPickerFallback:'ChronoTask：ha-icon-picker 不可用，使用简单输入框：',
     errActionSelectorInit:'ChronoTask：初始化动作选择器时出错：',
@@ -843,6 +837,13 @@ _getFreshRuleById(rid, fallbackRule){
   }
 }
 
+  // Apre il dialog di modifica di una regola: usato anche dal tag manager, che
+  // crea un'istanza di questa card fuori dalla dashboard solo per il dialog.
+  openRuleEditor(rule){
+    const rid=rule?.id??rule?.uid;
+    this._openDialog({ existing: this._getFreshRuleById(rid, rule) });
+  }
+
 _openDialogFresh(fallbackRule, blockEl){
   const rid = blockEl?.dataset?.realId || blockEl?.dataset?.uid || fallbackRule?.id || fallbackRule?.uid;
   const fresh = this._getFreshRuleById(rid, fallbackRule);
@@ -1043,7 +1044,24 @@ async _setAllEnabled(enabled){
     const content=document.createElement('div'); content.classList.add('apw-root'); content.style.minWidth='360px'; content.style.maxWidth='92vw';
     const dialogTitleText= existing ? this._t('editRule') : (prefill ? this._t('newRuleDup') : this._t('newRule'));
 
-    content.innerHTML=`<style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:0 0 8px}.dialog-header-side{display:flex;align-items:center;gap:4px}.dialog-header-left{justify-self:start}.dialog-header-right{justify-self:end}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}.text-btn{display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--primary-color);font-family:inherit}.text-btn:hover{background:var(--divider-color)}.text-btn:active{transform:translateY(1px)}.text-btn.danger{color:var(--error-color,#b00020)}.text-btn:disabled{opacity:.5;cursor:default}</style>
+    content.innerHTML=`<style>
+.ct-days{display:flex;flex-wrap:wrap;gap:4px}
+.ct-day{min-width:38px;padding:5px 8px;border:1px solid var(--divider-color);border-radius:999px;background:transparent;color:var(--primary-text-color);cursor:pointer;font:inherit;font-size:12px}
+.ct-day.on{background:var(--primary-color);border-color:var(--primary-color);color:var(--text-primary-color,#fff)}
+.ct-presets{display:flex;gap:12px;margin-top:6px}
+.ct-preset{border:none;background:none;color:var(--primary-color);cursor:pointer;font:inherit;font-size:12px;padding:0}
+.slot-row-actions{display:flex;align-items:center;gap:2px}
+.text-btn.small{padding:4px 8px;font-size:11px}
+.ct-hint{font-size:11px;color:var(--secondary-text-color);margin-top:3px;line-height:1.3}
+.ct-req{color:var(--error-color,#db4437);margin-left:2px}
+.ct-more{margin:6px 0 4px}.ct-more>summary{cursor:pointer;color:var(--primary-color);font-size:13px;margin-bottom:6px}
+.form-row textarea{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:64px;font:inherit;resize:vertical}
+.ct-rgb{display:flex;gap:6px;align-items:center}.ct-rgb input[type=color]{width:48px;min-width:48px;padding:2px}
+.ct-unit-row{display:flex;gap:6px;align-items:center}.ct-unit{font-size:12px;color:var(--secondary-text-color);white-space:nowrap}
+.ct-multi{display:flex;flex-wrap:wrap;gap:4px 14px}.ct-multi label{display:inline-flex;align-items:center;gap:4px;font-size:13px;margin:0}
+.ct-multi input{width:auto;min-height:0;padding:0}
+.ct-error{color:var(--error-color,#db4437);font-size:13px;padding:6px 2px 0}
+</style><style>.apw-root{display:flex;flex-direction:column;max-height:min(80vh,680px)}.dialog-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:0 0 8px}.dialog-header-side{display:flex;align-items:center;gap:4px}.dialog-header-left{justify-self:start}.dialog-header-right{justify-self:end}.dialog-title{font-weight:600;font-size:16px;text-align:center}.danger{color:var(--error-color,#b00020)}.form-row{margin:10px 0}.form-row label{display:block;font-size:12px;opacity:.8;margin-bottom:4px}.form-row input,.form-row select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);min-height:40px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-scroll{flex:1 1 auto;overflow:auto;padding:0}.footer3{display:flex;align-items:center;justify-content:center;gap:32px;padding:12px 0 0}.inline2{display:flex;align-items:center;justify-content:space-between;gap:8px}.chip{display:inline-block;padding:2px 8px;border:1px solid var(--divider-color);border-radius:999px;font-size:12px;opacity:.9}.small{font-size:12px;opacity:.8}.slot-row{border:1px solid var(--divider-color);border-radius:10px;padding:10px;margin-bottom:10px;position:relative}.slot-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.slot-row-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.7}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:50%;background:transparent;color:var(--primary-text-color);font-size:18px;line-height:1;cursor:pointer;padding:0}.icon-btn:hover{background:var(--divider-color)}.icon-btn.small{width:28px;height:28px;font-size:15px}.text-btn{display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--primary-color);font-family:inherit}.text-btn:hover{background:var(--divider-color)}.text-btn:active{transform:translateY(1px)}.text-btn.danger{color:var(--error-color,#b00020)}.text-btn:disabled{opacity:.5;cursor:default}</style>
       <div class="dialog-header">
         <div class="dialog-title" id="dlg_title">${dialogTitleText}</div>
         <div class="dialog-header-side dialog-header-right">
@@ -1094,6 +1112,7 @@ async _setAllEnabled(enabled){
           <div id="svc_fields_end"></div>
         </div>
       </div>
+      <div class="ct-error" id="dlg_error" hidden></div>
       <div class="footer3"><button type="button" class="text-btn" id="btn_cancel">${this._t('cancel')}</button><button type="button" class="text-btn" id="btn_save">${this._t('save')}</button></div>`;
 
     dlg.appendChild(content); document.body.appendChild(dlg);
@@ -1118,42 +1137,77 @@ async _setAllEnabled(enabled){
       try{ dlg.remove(); }catch(_){ }
       if(this._activeDialog===dlg) this._activeDialog=null;
     };
+    const showError=(msg)=>{ const e=$('#dlg_error'); if(!e) return; e.textContent=msg||''; e.hidden=!msg; };
     const btn_cancel_early=$('#btn_cancel');
     if(btn_cancel_early) btn_cancel_early.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); doClose(); });
 
-    const stepSec=this._getSlotMinutes()*60;
     const _cap=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
-    const DAY_OPTIONS=this._weekdayNames(_ctLang(this._hass),'long').map((n,i)=>`<option value="${i}">${_cap(n)}</option>`).join('');
+    const DAY_SHORT=this._weekdayNames(_ctLang(this._hass),'short').map(_cap);
+    const OFFSET_OPTIONS=`<option value="">${this._t('sameAsStart')}</option><option value="1">${this._t('endNextDay')}</option>`
+      +[2,3,4,5,6].map(n=>`<option value="${n}">${this._t('endPlusDays',n)}</option>`).join('');
+    const PRESETS={weekdays:[0,1,2,3,4],weekend:[5,6],all:[0,1,2,3,4,5,6]};
 
-    // --- Fasce orarie (multi-slot): una regola può avere più righe
-    // (day/start/end?/end_day?) che condividono la stessa azione. ---
+    // --- Fasce orarie: ogni riga ha orari e uno o più giorni. Al salvataggio
+    // una riga diventa una fascia per ogni giorno selezionato; riaprendo la
+    // regola, le fasce con gli stessi orari tornano raggruppate in una riga.
+    // Il giorno di fine è relativo ("giorno dopo", "+2 giorni"...), così vale
+    // per tutti i giorni della riga. I dati salvati restano fasce singole. ---
     const updateRemoveButtonsVisibility=()=>{
       const rows=slots_wrap.querySelectorAll('.slot-row');
       rows.forEach(r=>{ const btn=r.querySelector('.btn_remove_slot'); if(btn) btn.style.visibility = rows.length>1 ? 'visible' : 'hidden'; });
     };
-    const makeSlotRow=(prefillSlot)=>{
+    const setRowDays=(row,days)=>{
+      const set=new Set((days||[]).map(Number));
+      row.querySelectorAll('.ct-day').forEach(b=>{ const on=set.has(Number(b.dataset.day)); b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); });
+    };
+    const readRow=(row)=>({
+      days:[...row.querySelectorAll('.ct-day.on')].map(b=>Number(b.dataset.day)).sort((a,b)=>a-b),
+      start:(row.querySelector('.f_slot_start').value||'').slice(0,5),
+      end:(row.querySelector('.f_slot_end').value||'').trim().slice(0,5),
+      offset:(row.querySelector('.f_slot_end_offset').value||'').trim(),
+    });
+    const makeSlotRow=(prefill,afterRow)=>{
       const row=document.createElement('div'); row.className='slot-row';
       row.innerHTML=`
         <div class="slot-row-head">
           <span class="slot-row-title">${this._t('slotLabel')}</span>
-          <button type="button" class="icon-btn small btn_remove_slot" aria-label="${this._t('removeSlot')}">🗑</button>
+          <span class="slot-row-actions">
+            <button type="button" class="text-btn small btn_dup_slot">${this._t('duplicateSlot')}</button>
+            <button type="button" class="icon-btn small btn_remove_slot" aria-label="${this._t('removeSlot')}">🗑</button>
+          </span>
+        </div>
+        <div class="form-row"><label>${this._t('slotDays')}</label>
+          <div class="ct-days">${DAY_SHORT.map((n,i)=>`<button type="button" class="ct-day" data-day="${i}" aria-pressed="false">${n}</button>`).join('')}</div>
+          <div class="ct-presets">
+            <button type="button" class="ct-preset" data-preset="weekdays">${this._t('presetWeekdays')}</button>
+            <button type="button" class="ct-preset" data-preset="weekend">${this._t('presetWeekend')}</button>
+            <button type="button" class="ct-preset" data-preset="all">${this._t('presetAll')}</button>
+          </div>
         </div>
         <div class="two">
-          <div class="form-row"><label>${this._t('day')}</label><select class="f_slot_day">${DAY_OPTIONS}</select></div>
-          <div class="form-row"><label>${this._t('startTime')}</label><input class="f_slot_start" type="time" step="${stepSec}" value="08:00" /></div>
+          <div class="form-row"><label>${this._t('startTime')}</label><input class="f_slot_start" type="time" step="60" value="08:00" /></div>
+          <div class="form-row"><label>${this._t('endTimeOpt')}</label><input class="f_slot_end" type="time" step="60" /></div>
         </div>
-        <div class="two">
-          <div class="form-row"><label>${this._t('endTimeOpt')}</label><input class="f_slot_end" type="time" step="${stepSec}" placeholder="09:00" /></div>
-          <div class="form-row"><label>${this._t('endDay')}</label><select class="f_slot_end_day"><option value="">${this._t('sameAsStart')}</option>${DAY_OPTIONS}</select></div>
-        </div>`;
-      slots_wrap.appendChild(row);
-      const dayEl=row.querySelector('.f_slot_day'), startEl=row.querySelector('.f_slot_start'), endEl=row.querySelector('.f_slot_end'), endDayEl=row.querySelector('.f_slot_end_day');
-      if(prefillSlot){
-        if(prefillSlot.day!=null) dayEl.value=String(prefillSlot.day);
-        if(prefillSlot.start) startEl.value=String(prefillSlot.start).slice(0,5);
-        if(prefillSlot.end) endEl.value=String(prefillSlot.end).slice(0,5);
-        if(prefillSlot.end_day!=null&&prefillSlot.end_day!=='') endDayEl.value=String(prefillSlot.end_day);
+        <div class="form-row"><label>${this._t('endDay')}</label><select class="f_slot_end_offset">${OFFSET_OPTIONS}</select></div>`;
+      if(afterRow) afterRow.after(row); else slots_wrap.appendChild(row);
+      if(prefill){
+        setRowDays(row,prefill.days);
+        if(prefill.start) row.querySelector('.f_slot_start').value=String(prefill.start).slice(0,5);
+        if(prefill.end) row.querySelector('.f_slot_end').value=String(prefill.end).slice(0,5);
+        if(prefill.offset!=null&&prefill.offset!=='') row.querySelector('.f_slot_end_offset').value=String(prefill.offset);
       }
+      row.querySelectorAll('.ct-day').forEach(b=> b.addEventListener('click',(ev)=>{
+        ev.preventDefault(); ev.stopPropagation();
+        const on=!b.classList.contains('on'); b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false');
+      }));
+      row.querySelectorAll('.ct-preset').forEach(b=> b.addEventListener('click',(ev)=>{
+        ev.preventDefault(); ev.stopPropagation(); setRowDays(row,PRESETS[b.dataset.preset]);
+      }));
+      row.querySelector('.btn_dup_slot').addEventListener('click',(ev)=>{
+        ev.preventDefault(); ev.stopPropagation();
+        makeSlotRow(readRow(row),row);
+        updateRemoveButtonsVisibility();
+      });
       row.querySelector('.btn_remove_slot').addEventListener('click',(ev)=>{
         ev.preventDefault(); ev.stopPropagation();
         if(slots_wrap.querySelectorAll('.slot-row').length<=1) return; // sempre almeno 1 fascia
@@ -1162,21 +1216,37 @@ async _setAllEnabled(enabled){
       });
       return row;
     };
+    // Fasce salvate -> righe: stessi orari e stesso giorno di fine relativo = stessa riga.
+    const groupSlots=(slots)=>{
+      const rows=[]; const index=new Map();
+      for(const s of (slots||[])){
+        const day=Number(s?.day); if(!Number.isFinite(day)||day<0||day>6) continue;
+        const start=String(s.start||'').slice(0,5); const end=s.end?String(s.end).slice(0,5):'';
+        let offset='';
+        if(s.end_day!=null&&s.end_day!==''&&Number.isFinite(Number(s.end_day))){ const o=((Number(s.end_day)-day)%7+7)%7; offset=o?String(o):''; }
+        const key=`${start}|${end}|${offset}`;
+        if(index.has(key)){ const r=rows[index.get(key)]; if(!r.days.includes(day)) r.days.push(day); }
+        else { index.set(key,rows.length); rows.push({days:[day],start,end,offset}); }
+      }
+      rows.forEach(r=>r.days.sort((a,b)=>a-b));
+      return rows;
+    };
+    // Righe -> fasce singole, una per giorno selezionato.
     const collectSlots=()=>{
       const slots=[];
       slots_wrap.querySelectorAll('.slot-row').forEach(row=>{
-        const day=Number(row.querySelector('.f_slot_day').value);
-        const start=(row.querySelector('.f_slot_start').value||'').slice(0,5);
-        if(Number.isNaN(day)||!start) return;
-        const slot={ day, start };
-        const end=(row.querySelector('.f_slot_end').value||'').trim().slice(0,5);
-        const endDayRaw=(row.querySelector('.f_slot_end_day').value||'').trim();
-        if(end) slot.end=end;
-        if(endDayRaw!==''&&!Number.isNaN(Number(endDayRaw))) slot.end_day=Number(endDayRaw);
-        slots.push(slot);
+        const r=readRow(row);
+        if(!r.start) return;
+        for(const day of r.days){
+          const slot={ day, start:r.start };
+          if(r.end) slot.end=r.end;
+          if(r.offset!=='') slot.end_day=(day+Number(r.offset))%7;
+          slots.push(slot);
+        }
       });
       return slots;
     };
+    const rowsWithoutDays=()=>[...slots_wrap.querySelectorAll('.slot-row')].filter(row=>!row.querySelector('.ct-day.on')).length;
     const btn_add_slot=$('#btn_add_slot');
     if(btn_add_slot) btn_add_slot.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); makeSlotRow(null); updateRemoveButtonsVisibility(); });
 
@@ -1317,23 +1387,24 @@ if (prefill && !existing) {
 
     // Fasce orarie: da existing.slots / prefill.slots se presenti, altrimenti
     // una singola fascia ricostruita dai campi flat legacy (day/start/end/
-    // end_day), altrimenti una riga vuota di default.
+    // end_day), altrimenti una riga vuota di default. Raggruppate per orari.
     try{
       const slotsSource = (existing?.slots?.length) ? existing.slots
         : (prefill?.slots?.length ? prefill.slots : null);
       let initialSlots;
       if(slotsSource){
         initialSlots = slotsSource;
-      } else {
+      } else if(existing || prefill){
         const src = existing || prefill;
         const day = typeof src?.day==='number' ? src.day : (typeof src?.weekday==='number' ? src.weekday : 0);
-        const start = String(src?.start || src?.time || '08:00').slice(0,5);
-        const one = { day, start };
+        const one = { day, start: String(src?.start || src?.time || '08:00').slice(0,5) };
         if(src?.end) one.end = String(src.end).slice(0,5);
         if(typeof src?.end_day==='number') one.end_day = src.end_day;
         initialSlots = [one];
+      } else {
+        initialSlots = [];
       }
-      initialSlots.forEach(s=> makeSlotRow(s));
+      groupSlots(initialSlots).forEach(r=> makeSlotRow(r));
     }catch(_){ }
     if(!slots_wrap.querySelector('.slot-row')) makeSlotRow(null);
     updateRemoveButtonsVisibility();
@@ -1347,106 +1418,224 @@ if (prefill && !existing) {
 
     // Dynamic services & fields
     const _getDomain=(entityId)=>{ if(!entityId||typeof entityId!=='string') return ''; const i=entityId.indexOf('.'); return i>0?entityId.slice(0,i):''; };
-    const _listServicesForDomain=(domain,includeHA)=>{ const svc=(this._hass&&this._hass.services)||{}; const list=[]; if(domain && svc[domain]){ for(const s of Object.keys(svc[domain])) list.push(`${domain}.${s}`);} if(includeHA){ ['turn_on','turn_off','toggle'].forEach(s=>{ if(svc.homeassistant&&svc.homeassistant[s]) list.push(`homeassistant.${s}`);}); } list.sort((a,b)=>{ const pr=x=> (x.endsWith('.turn_on')||x.endsWith('.turn_off')||x.endsWith('.toggle'))?0:1; return pr(a)-pr(b)||a.localeCompare(b); }); return Array.from(new Set(list)); };
+    // --- Azioni: elenco di tutte le azioni di HA, raggruppate per dominio, con
+    // quello dell'entità scelta in cima. Parametri costruiti dalla descrizione
+    // che HA dà di ogni azione (selettori, limiti, campi supportati
+    // dall'entità, sezioni, obbligatori), con nomi tradotti quando disponibili. ---
+    const _svcMeta=(full)=>{ const [d,s]=String(full||'').split('.'); return (d&&s&&this._hass?.services?.[d]?.[s])||null; };
+    // L'entità della regola va nei dati solo se l'azione la accetta (target o
+    // campo entity_id); se HA non descrive l'azione si mantiene il vecchio comportamento.
+    const _serviceTakesEntity=(full)=>{ const meta=_svcMeta(full); if(!meta) return true; return !!(meta.target || meta.fields?.entity_id); };
+    const _populateServiceSelect=(selectEl,domain,preselected)=>{
+      if(!selectEl) return; selectEl.innerHTML='';
+      const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent=this._t('selectService'); selectEl.appendChild(placeholder);
+      const all=this._hass?.services||{};
+      const domains=Object.keys(all).sort((a,b)=> (a===domain?-1:b===domain?1:a.localeCompare(b)));
+      const known=new Set();
+      for(const d of domains){
+        const names=Object.keys(all[d]||{}).sort(); if(!names.length) continue;
+        const group=document.createElement('optgroup'); group.label=d;
+        for(const n of names){ const full=`${d}.${n}`; known.add(full); const o=document.createElement('option'); o.value=full; o.textContent=full; group.appendChild(o); }
+        selectEl.appendChild(group);
+      }
+      if(preselected && !known.has(preselected)){ const extra=document.createElement('option'); extra.value=preselected; extra.textContent=this._t('notInDomain',preselected); selectEl.appendChild(extra); }
+      selectEl.value=preselected||'';
+    };
+    const _trCache=new Map();
+    const _loadTranslations=(domain)=>{
+      if(!_trCache.has(domain)){
+        let p=Promise.resolve(null);
+        try{ if(typeof this._hass?.loadBackendTranslation==='function') p=Promise.resolve(this._hass.loadBackendTranslation('services',domain)).catch(()=>null); }catch(_){ }
+        _trCache.set(domain,p);
+      }
+      return _trCache.get(domain);
+    };
+    const _tr=(loc,key)=>{ try{ const v=loc?loc(key):''; return (v&&v!==key)?v:''; }catch(_){ return ''; } };
+    // Il campo è supportato dall'entità? (filter.supported_features / filter.attribute)
+    const _fieldSupported=(fdesc,st)=>{
+      const f=fdesc?.filter; if(!f||!st) return true;
+      if(Array.isArray(f.supported_features)&&f.supported_features.length){
+        const sf=Number(st.attributes?.supported_features)||0;
+        if(!f.supported_features.some(m=>(sf&Number(m))!==0)) return false;
+      }
+      if(f.attribute&&typeof f.attribute==='object'){
+        for(const [attr,vals] of Object.entries(f.attribute)){
+          const v=st.attributes?.[attr]; const have=Array.isArray(v)?v:[v];
+          if(Array.isArray(vals)&&!vals.some(x=>have.includes(x))) return false;
+        }
+      }
+      return true;
+    };
+    // Opzioni di un selettore "state" o di un campo *_mode: dai valori ammessi dall'entità.
+    const _stateOptions=(fname,sel,st)=>{
+      if(!st) return null;
+      const attr=sel?.state?.attribute;
+      let list=attr?st.attributes?.[`${attr}s`]:null;
+      if(!Array.isArray(list)) list=st.attributes?.[`${fname}s`];
+      if(!Array.isArray(list)) return null;
+      const hide=new Set(sel?.state?.hide_states||['unavailable','unknown']);
+      return list.filter(v=>!hide.has(v)).map(v=>({value:v,label:String(v)}));
+    };
+    const _fmtValue=(v)=> v==null ? '' : (Array.isArray(v) ? v.map(String).join(', ') : (typeof v==='object' ? JSON.stringify(v) : String(v)));
     const _renderServiceFields=(container,fullService,entityId,currentData={})=>{
       container.innerHTML=''; if(!fullService) return;
       const [domain,service]=fullService.split('.');
-      const addRow=(name,label,type='text',attrs={})=>{
-        const row=document.createElement('div'); row.className='form-row';
-        const id=`svc_field_${name}_${container.id}`;
-        const lab=document.createElement('label'); lab.setAttribute('for',id); lab.textContent=label; row.appendChild(lab);
-        let input;
-        if(type==='select'){ input=document.createElement('select'); (attrs.options||[]).forEach(opt=>{ const o=document.createElement('option'); o.value=String(opt); o.textContent=String(opt); input.appendChild(o);}); }
-        else { input=document.createElement('input'); input.type=type; if(attrs.min!=null) input.min=String(attrs.min); if(attrs.max!=null) input.max=String(attrs.max); if(attrs.step!=null) input.step=String(attrs.step); if(attrs.placeholder) input.placeholder=attrs.placeholder; }
-        input.id=id; input.setAttribute('data-field',name);
-        if(attrs.kind) input.dataset.kind=attrs.kind;
-        const v=currentData[name];
-        if(v!=null){
-          if(Array.isArray(v)) input.value=v.map(String).join(', ');
-          else if(typeof v==='object') input.value=JSON.stringify(v);
-          else input.value=String(v);
+      const meta=_svcMeta(fullService);
+      const st=entityId?this._hass?.states?.[entityId]:null;
+      const current=currentData||{};
+      const relabel=[];   // [elemento, chiave di traduzione]
+      const makeRow=(parent,fname,fdesc)=>{
+        const sel=fdesc?.selector||{}; const type=Object.keys(sel)[0]||'';
+        const row=document.createElement('div'); row.className='form-row svc-field';
+        const id=`svc_field_${fname}_${container.id}`;
+        const lab=document.createElement('label'); lab.setAttribute('for',id);
+        const labText=document.createElement('span'); labText.textContent=fdesc?.name||fname; lab.appendChild(labText);
+        relabel.push([labText,`component.${domain}.services.${service}.fields.${fname}.name`]);
+        if(fdesc?.required){ const req=document.createElement('span'); req.className='ct-req'; req.textContent='*'; lab.appendChild(req); }
+        row.appendChild(lab);
+        const v=current[fname];
+        let input, kind='', holder=null;
+        if(type==='boolean'){
+          input=document.createElement('select'); kind='bool';
+          [['',this._t('notSet')],['true',this._t('boolYes')],['false',this._t('boolNo')]].forEach(([val,txt])=>{ const o=document.createElement('option'); o.value=val; o.textContent=txt; input.appendChild(o); });
+          if(v===true||v===false) input.value=String(v);
+        } else if(type==='select'||type==='state'||(!type&&Array.isArray(st?.attributes?.[`${fname}s`]))){
+          let opts;
+          if(type==='select'){
+            opts=(sel.select?.options||[]).map(o=> (o&&typeof o==='object') ? {value:o.value,label:o.label??String(o.value)} : {value:o,label:String(o)});
+          } else {
+            opts=_stateOptions(fname,sel,st);
+          }
+          if(opts && sel.select?.multiple){
+            input=document.createElement('div'); input.className='ct-multi'; kind='multi';
+            const chosen=new Set((Array.isArray(v)?v:(v!=null?[v]:[])).map(String));
+            opts.forEach(o=>{ const l=document.createElement('label'); const cb=document.createElement('input'); cb.type='checkbox'; cb.value=String(o.value); cb.checked=chosen.has(String(o.value)); l.appendChild(cb); const t=document.createElement('span'); t.textContent=o.label; l.appendChild(t); input.appendChild(l);
+              if(sel.select?.translation_key) relabel.push([t,`component.${domain}.selector.${sel.select.translation_key}.options.${o.value}`]); });
+          } else if(opts){
+            input=document.createElement('select'); kind='select';
+            const none=document.createElement('option'); none.value=''; none.textContent=this._t('notSet'); input.appendChild(none);
+            opts.forEach(o=>{ const op=document.createElement('option'); op.value=String(o.value); op.textContent=o.label; if(typeof o.value==='number') op.dataset.num='1'; input.appendChild(op);
+              if(sel.select?.translation_key) relabel.push([op,`component.${domain}.selector.${sel.select.translation_key}.options.${o.value}`]); });
+            if(v!=null&&!opts.some(o=>String(o.value)===String(v))){ const op=document.createElement('option'); op.value=String(v); op.textContent=String(v); input.appendChild(op); }
+            if(v!=null) input.value=String(v);
+          } else {
+            input=document.createElement('input'); input.type='text'; input.value=_fmtValue(v);
+          }
+        } else if(type==='number'){
+          input=document.createElement('input'); input.type='number'; kind='num';
+          const n=sel.number||{};
+          if(n.min!=null) input.min=String(n.min); if(n.max!=null) input.max=String(n.max);
+          input.step=(n.step!=null&&n.step!=='any')?String(n.step):'any';
+          if(v!=null) input.value=String(v);
+          if(n.unit_of_measurement){ holder=document.createElement('div'); holder.className='ct-unit-row'; holder.appendChild(input); const u=document.createElement('span'); u.className='ct-unit'; u.textContent=n.unit_of_measurement; holder.appendChild(u); }
+        } else if(type==='color_rgb'){
+          input=document.createElement('input'); input.type='text'; kind='list-num'; input.placeholder='255, 180, 100'; input.value=_fmtValue(v);
+          const pick=document.createElement('input'); pick.type='color';
+          const toHex=(arr)=>'#'+arr.map(x=>Math.max(0,Math.min(255,Number(x)||0)).toString(16).padStart(2,'0')).join('');
+          if(Array.isArray(v)&&v.length===3) pick.value=toHex(v);
+          pick.addEventListener('input',()=>{ const h=pick.value.replace('#',''); input.value=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)).join(', '); });
+          holder=document.createElement('div'); holder.className='ct-rgb'; holder.appendChild(pick); holder.appendChild(input);
+        } else if(type==='object'||(type==='text'&&sel.text?.multiline)||type==='template'){
+          input=document.createElement('textarea'); kind=(type==='object')?'json':'';
+          input.value=(type==='object'&&v!=null&&typeof v==='object')?JSON.stringify(v,null,2):_fmtValue(v);
+        } else if(type==='time'){
+          input=document.createElement('input'); input.type='time'; input.step='1'; input.value=_fmtValue(v);
+        } else if(type==='duration'){
+          input=document.createElement('input'); input.type='text'; input.placeholder='00:05:00';
+          input.value=(v&&typeof v==='object')?JSON.stringify(v):_fmtValue(v); kind=(v&&typeof v==='object')?'json':'';
+        } else if(type==='entity'&&sel.entity?.multiple){
+          input=document.createElement('input'); input.type='text'; kind='list-str'; input.value=_fmtValue(v);
+        } else {
+          // Nessun selettore noto: numero se il nome lo fa pensare, altrimenti testo
+          const isNum=!type&&(typeof v==='number'||/temperature|position|volume|brightness|delay|transition|level|percent/.test(fname));
+          input=document.createElement('input'); input.type=isNum?'number':'text'; if(isNum){ input.step='any'; kind='num'; }
+          if(v!=null&&typeof v==='object'&&!Array.isArray(v)){ input.value=JSON.stringify(v); kind='json'; }
+          else { input.value=_fmtValue(v); if(Array.isArray(v)) kind='list-auto'; }
         }
-        row.appendChild(input); container.appendChild(row); return input;
+        if(input.tagName!=='DIV') input.id=id;
+        input.setAttribute('data-field',fname);
+        if(kind) input.dataset.kind=kind;
+        if(fdesc?.required) input.dataset.required='1';
+        if(fdesc?.example!=null&&!input.placeholder&&'placeholder' in input) input.placeholder=_fmtValue(fdesc.example);
+        row.appendChild(holder||input);
+        const hintText=[fdesc?.description||'', kind==='json'?this._t('jsonHint'):'', type==='duration'?this._t('durationHint'):''].filter(Boolean).join(' · ');
+        if(hintText){ const hint=document.createElement('div'); hint.className='ct-hint'; hint.textContent=hintText; row.appendChild(hint);
+          if(fdesc?.description) relabel.push([hint,`component.${domain}.services.${service}.fields.${fname}.description`,hintText.slice((fdesc.description||'').length)]); }
+        parent.appendChild(row);
       };
-      if(domain==='light'&&service==='turn_on'){ addRow('brightness',this._t('fieldBrightness'),'number',{min:0,max:255,step:1}); addRow('transition',this._t('fieldTransition'),'number',{min:0,step:0.1}); addRow('effect',this._t('fieldEffect'),'text',{placeholder:this._t('egColorloop')}); }
-      else if(domain==='climate'&&service==='set_temperature'){ addRow('temperature',this._t('fieldTemperature'),'number',{min:5,max:35,step:0.5}); }
-      else if(domain==='climate'&&service==='set_hvac_mode'){ addRow('hvac_mode','HVAC mode','select',{options:['off','heat','cool','auto','dry','fan_only']}); }
-      else if(domain==='cover'&&(service==='set_cover_position'||service==='set_position')){ addRow('position',this._t('fieldPosition'),'number',{min:0,max:100,step:1}); }
-      else if(domain==='media_player'&&service==='volume_set'){ addRow('volume_level',this._t('fieldVolume'),'number',{min:0,max:1,step:0.01}); }
-      // Campi non scalari (liste/oggetti): l'input testuale li mostra come CSV/JSON
-      // e 'kind' dice a _collectServiceData come riconvertirli, così il tipo non
-      // viene corrotto (es. rgb_color -> stringa) risalvando una regola invariata.
-      const _fieldKindFromSelector=(fdesc)=>{
-        const sel=fdesc?.selector; if(!sel) return '';
-        if(sel.color_rgb||sel.color_hs||sel.color_xy) return 'list-num';
-        if(sel.object) return 'json';
-        if(sel.select&&sel.select.multiple) return 'list-str';
-        return '';
-      };
-      const meta=(this._hass?.services?.[domain]?.[service])||null;
       if(meta?.fields){
+        const sections=new Map();
         for(const [fname,fdesc] of Object.entries(meta.fields)){
-          if(container.querySelector(`[data-field="${fname}"]`)) continue;
-          const label=(fdesc?.name||fdesc?.description)?(fdesc.name||fdesc.description):fname;
-          const kind=_fieldKindFromSelector(fdesc);
-          const isNum=!kind&&/temperature|position|volume|brightness|delay|duration|transition|level|percent/.test(fname);
-          addRow(fname,label,isNum?'number':'text',{kind});
+          if(fdesc&&typeof fdesc==='object'&&fdesc.fields&&!fdesc.selector){
+            // Sezione (es. "opzioni avanzate"): campi raccolti in una parte richiudibile
+            const det=document.createElement('details'); det.className='ct-more'; if(!fdesc.collapsed) det.open=true;
+            const sum=document.createElement('summary'); sum.textContent=this._t('moreOptions'); det.appendChild(sum);
+            relabel.push([sum,`component.${domain}.services.${service}.sections.${fname}.name`]);
+            sections.set(fname,det);
+            for(const [sub,sdesc] of Object.entries(fdesc.fields)){
+              if(sub==='entity_id'||!_fieldSupported(sdesc,st)) continue;
+              makeRow(det,sub,sdesc);
+              if(current[sub]!=null) det.open=true;
+            }
+            if(det.querySelector('[data-field]')) container.appendChild(det);
+            continue;
+          }
+          if(fname==='entity_id'||!_fieldSupported(fdesc,st)) continue;
+          makeRow(container,fname,fdesc);
         }
       }
-      // Valore già presente ma non riconducibile a nessun campo noto (es. servizio
-      // non ha più quella metadata): mostralo comunque per non perderlo silenziosamente.
-      for(const [fname,v] of Object.entries(currentData||{})){
+      // Valori già salvati che l'azione non descrive (più): mostrati per non perderli.
+      for(const [fname,v] of Object.entries(current)){
         if(fname==='entity_id') continue;
         if(container.querySelector(`[data-field="${fname}"]`)) continue;
-        const kind=Array.isArray(v)?'list-auto':(v&&typeof v==='object'?'json':'');
-        const asNumber=!kind&&typeof v==='number';
-        addRow(fname,fname,asNumber?'number':'text',{kind});
+        makeRow(container,fname,{selector:{}, name:fname});
       }
+      // Nomi e descrizioni tradotti, appena HA li ha caricati
+      _loadTranslations(domain).then(loc=>{
+        if(!loc||!container.isConnected) return;
+        for(const [el,key,suffix] of relabel){ const t=_tr(loc,key); if(t) el.textContent=t+(suffix||''); }
+      });
     };
-    const _populateServiceSelect=(selectEl,services,preselected)=>{
-      if(!selectEl) return; selectEl.innerHTML='';
-      const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent=this._t('selectService'); selectEl.appendChild(placeholder);
-      for(const svc of services){ const opt=document.createElement('option'); opt.value=String(svc); opt.textContent=String(svc); selectEl.appendChild(opt); }
-      if(preselected && !services.includes(preselected)){ const extra=document.createElement('option'); extra.value=preselected; extra.textContent=this._t('notInDomain',preselected); selectEl.appendChild(extra);}
-      selectEl.value=preselected && (services.includes(preselected) || preselected) ? preselected : '';
-    };
-    const _collectServiceData=(container)=>{
-      const data={}; container.querySelectorAll('[data-field]').forEach(el=>{
-        const name=el.getAttribute('data-field'); const raw=(el.value??'').toString();
+    // Valori dei campi -> dati dell'azione. errors raccoglie i campi JSON non validi.
+    const _collectServiceData=(container,errors=[])=>{
+      const data={};
+      container.querySelectorAll('[data-field]').forEach(el=>{
+        const name=el.getAttribute('data-field'); const kind=el.dataset.kind||'';
+        if(kind==='multi'){ const vals=[...el.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value); if(vals.length) data[name]=vals; return; }
+        const raw=(el.value??'').toString();
         if(raw.trim()==='') return;
-        const kind=el.dataset.kind||'';
-        if(kind==='list-num'){
-          const arr=raw.split(',').map(s=>Number(s.trim())).filter(n=>Number.isFinite(n));
-          if(arr.length) data[name]=arr;
-          return;
-        }
-        if(kind==='list-str'){
-          const arr=raw.split(',').map(s=>s.trim()).filter(Boolean);
-          if(arr.length) data[name]=arr;
-          return;
-        }
+        if(kind==='bool'){ data[name]=(raw==='true'); return; }
+        if(kind==='select'){ const op=el.selectedOptions&&el.selectedOptions[0]; data[name]=(op&&op.dataset.num)?Number(raw):raw; return; }
+        if(kind==='num'){ const num=Number(raw); if(Number.isFinite(num)) data[name]=num; return; }
+        if(kind==='list-num'){ const arr=raw.split(',').map(x=>Number(x.trim())).filter(n=>Number.isFinite(n)); if(arr.length) data[name]=arr; return; }
+        if(kind==='list-str'){ const arr=raw.split(',').map(x=>x.trim()).filter(Boolean); if(arr.length) data[name]=arr; return; }
         if(kind==='list-auto'){
-          // Ricostruisce una lista mista preservando i numeri (es. rgb_color salvato senza selector noto)
-          const arr=raw.split(',').map(s=>{ const t=s.trim(); const n=Number(t); return (t!==''&&Number.isFinite(n))?n:t; }).filter(v=>v!=='');
-          if(arr.length) data[name]=arr;
-          return;
+          // Lista mista preservando i numeri (es. rgb_color salvato senza selettore noto)
+          const arr=raw.split(',').map(x=>{ const t=x.trim(); const n=Number(t); return (t!==''&&Number.isFinite(n))?n:t; }).filter(x=>x!=='');
+          if(arr.length) data[name]=arr; return;
         }
-        if(kind==='json'){
-          try{ data[name]=JSON.parse(raw); }catch(_){ data[name]=raw.trim(); }
-          return;
-        }
-        if(el.type==='number'){ const num=Number(raw); if(!Number.isFinite(num)) return; data[name]=num; return; }
+        if(kind==='json'){ try{ data[name]=JSON.parse(raw); }catch(_){ errors.push(name); } return; }
+        if(el.type==='number'){ const num=Number(raw); if(Number.isFinite(num)) data[name]=num; return; }
         data[name]=raw.trim();
-      }); return data;
+      });
+      return data;
+    };
+    // Campi obbligatori rimasti vuoti (nomi come mostrati nel dialog)
+    const _missingRequired=(container)=>{
+      const out=[];
+      container.querySelectorAll('[data-field][data-required="1"]').forEach(el=>{
+        const empty=(el.dataset.kind==='multi') ? !el.querySelector('input:checked') : !(el.value??'').toString().trim();
+        if(empty){ const lab=el.closest('.svc-field')?.querySelector('label span'); out.push(lab?lab.textContent:el.dataset.field); }
+      });
+      return out;
     };
 
     const refreshServiceSelects=(opts={preserveSelection:false})=>{
       const domain=_getDomain(getEntityId());
-      const services=_listServicesForDomain(domain,!domain);
       const selStart=opts.preserveSelection?(f_service_sel.value||preSelStart):preSelStart;
       const selEnd=opts.preserveSelection?(f_service_sel_end.value||preSelEnd):preSelEnd;
-      _populateServiceSelect(f_service_sel,services,selStart);
-      _populateServiceSelect(f_service_sel_end,services,selEnd);
+      _populateServiceSelect(f_service_sel,domain,selStart);
+      _populateServiceSelect(f_service_sel_end,domain,selEnd);
       const eid=getEntityId();
       _renderServiceFields(svc_fields,f_service_sel.value,eid,f_service_sel.value===preSelStart?preDataStart:{});
       _renderServiceFields(svc_fields_end,f_service_sel_end.value,eid,f_service_sel_end.value===preSelEnd?preDataEnd:{});
@@ -1470,11 +1659,11 @@ if (btn_duplicate) {
 
     const startService = (f_service_sel.value || '').trim();
     const startData = _collectServiceData(svc_fields);
-    if (eid) startData.entity_id = eid;
+    if (eid && _serviceTakesEntity(startService)) startData.entity_id = eid;
 
     const endService = (f_service_sel_end.value || '').trim();
     const endData = _collectServiceData(svc_fields_end);
-    if (eid && endService) endData.entity_id = eid;
+    if (eid && endService && _serviceTakesEntity(endService)) endData.entity_id = eid;
 
     const colorHex = _toHexFromAny(
       f_color.value || this._config.default_color,
@@ -1517,19 +1706,28 @@ if (btn_duplicate) {
     const doSave=async()=>{
       if(!this._hass) return;
       const eid=getEntityId();
+      showError('');
       const serviceStart=(f_service_sel.value||'').trim();
-      if(!serviceStart){ console.warn(this._t('warnNoStartService')); return; }
+      if(!serviceStart){ showError(this._t('warnNoStartService')); return; }
 
+      if(rowsWithoutDays()){ showError(this._t('errSlotNoDays')); return; }
       const slots=collectSlots();
-      if(!slots.length){ console.warn(this._t('warnNoValidSlots')); return; }
+      if(!slots.length){ showError(this._t('warnNoValidSlots')); return; }
+
+      const endServiceSel=(f_service_sel_end.value||'').trim();
+      const missing=[..._missingRequired(svc_fields), ...(endServiceSel?_missingRequired(svc_fields_end):[])];
+      if(missing.length){ showError(this._t('errRequiredFields',missing.join(', '))); return; }
+      const jsonErrors=[];
+      const svcStartData=_collectServiceData(svc_fields,jsonErrors);
+      const endDataCollected=endServiceSel?_collectServiceData(svc_fields_end,jsonErrors):{};
+      if(jsonErrors.length){ showError(this._t('errInvalidJson',jsonErrors.join(', '))); return; }
 
       let picked=(f_color&&f_color.value)?String(f_color.value).toLowerCase():'';
       const initial=(f_color?.dataset?.initialHex||'').toLowerCase();
       if(!picked) picked=initial||this._config.default_color;
       const colorHex=_toHexFromAny(picked,this._config.default_color);
 
-      const svcStartData=_collectServiceData(svc_fields);
-      if(eid) svcStartData.entity_id=eid;
+      if(eid && _serviceTakesEntity(serviceStart)) svcStartData.entity_id=eid;
       if(serviceStart==='light.turn_on'){
         if(svcStartData.brightness===0) delete svcStartData.brightness;
         if(svcStartData.brightness_pct===0) delete svcStartData.brightness_pct;
@@ -1547,7 +1745,7 @@ if (btn_duplicate) {
       };
       const endService=(f_service_sel_end.value||'').trim();
       if(endService){
-        const endData=_collectServiceData(svc_fields_end); if(eid) endData.entity_id=eid;
+        const endData=endDataCollected; if(eid && _serviceTakesEntity(endService)) endData.entity_id=eid;
         if(endService==='light.turn_on'){
           if(endData.brightness===0) delete endData.brightness;
           if(endData.brightness_pct===0) delete endData.brightness_pct;

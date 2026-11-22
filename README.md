@@ -90,7 +90,8 @@ ChronoTask provides:
 
 - 📅 **Weekly planner** with configurable time slots
 - 🧩 **Recurring rules** with optional start / end
-- 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once
+- 🗓 **Multi-slot rules** — one rule, one action, covering multiple days/times at once: pick several days for the same times (with Mon–Fri / Weekend / All shortcuts) and duplicate a slot in one tap
+- 🎛 **Any Home Assistant action, with all its parameters** — every action is available (not only the ones of the chosen entity's domain), and its fields are built like in *Developer tools → Actions*: proper inputs for numbers, choices, yes/no, colours and JSON, only the fields the entity supports, required fields checked, names translated
 - 🌙 **Overnight and multi-day slots** — e.g. Monday 22:00 → 06:00, or Monday 09:00 → Thursday 09:00, drawn across every day they cover
 - 🔲 **Lane layout** — overlapping rules are shown side by side instead of stacking
 - ⏸ **Hold / resume / resync** — pause single entities (manual override, open window, away) and let the schedule take over again when the pause ends, with the current expected state exposed for automations
@@ -127,6 +128,7 @@ ChronoTask is not just a card, but a small ecosystem:
 ### 📅 Weekly Card
 - Weekly calendar-style visualization (slots crossing midnight or spanning several days continue in the next day's column)
 - Rule creation and editing directly from the UI, with a searchable entity picker
+- Time slots edited as rows of days + times; rules with many slots (e.g. 20) stay readable because slots with the same times are grouped in one row
 - Fully usable on desktop and mobile
 
 ### 💾 Backup Card
@@ -136,6 +138,7 @@ ChronoTask is not just a card, but a small ecosystem:
 
 ### 🏷 Tag Manager Card
 - Bulk rule management via tags
+- Tap a rule to open it in the same edit dialog as the weekly card (the weekly card doesn't need to be on the same view)
 - Enable / disable entire groups with one click
 
 ---
